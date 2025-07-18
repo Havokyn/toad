@@ -4,8 +4,10 @@ from textual import containers
 from textual import getters
 from textual.binding import Binding
 from textual.widget import Widget
-from textual.widgets import Markdown
+from textual.widgets import Markdown, Static
 from textual.widgets._markdown import MarkdownBlock
+from textual.geometry import Offset
+from textual.timer import Timer
 
 from textual.reactive import var
 
@@ -185,6 +187,47 @@ I would like to add controls to these widgets to export the table as CSV, which 
 """
 
 
+class Cursor(Static):
+    follow_widget: var[Widget | None] = var(None)
+    blink = var(True, toggle_class="-blink")
+    blink_timer: var[Timer | None] = None
+
+    def on_mount(self) -> None:
+        self.blink_timer = self.set_interval(0.5, self._update_blink)
+        # self.update("⮕")
+
+    def _update_blink(self) -> None:
+        self.blink = not self.blink
+
+    def watch_follow_widget(self, widget: Widget | None) -> None:
+        self.display = widget is not None
+
+    def _update_follow(self) -> None:
+        if self.follow_widget:
+            self.styles.height = max(1, self.follow_widget.size.height)
+            self.offset = Offset(
+                0,
+                self.follow_widget.region.y + self.parent.scroll_offset.y,
+            )
+            if self.blink_timer is not None:
+                self.blink_timer.reset()
+            self.blink = False
+            # self.styles.animate("height", self.follow_widget.size.height, speed=0.1)
+            # self.animate(
+            #     "offset",
+            #     Offset(
+            #         0,
+            #         self.follow_widget.region.y + self.parent.scroll_offset.y,
+            #     ),
+            #     duration=0.1,
+            # )
+
+    def follow(self, widget: Widget | None) -> None:
+        self.follow_widget = widget
+        self.blink = True
+        self._update_follow()
+
+
 class Conversation(containers.VerticalScroll):
     BINDINGS = [
         Binding("shift+up", "cursor_up", priority=True),
@@ -197,10 +240,12 @@ class Conversation(containers.VerticalScroll):
 
     throbber: getters.query_one[Throbber] = getters.query_one("#throbber")
     contents = getters.query_one("#contents", containers.VerticalScroll)
+    cursor = getters.query_one(Cursor)
 
     def compose(self) -> ComposeResult:
         yield Throbber(id="throbber")
-        yield containers.VerticalScroll(id="contents")
+        with containers.VerticalScroll(id="contents"):
+            yield Cursor()
         yield Prompt()
 
     @on(messages.WorkStarted)
@@ -251,6 +296,7 @@ class Conversation(containers.VerticalScroll):
         self.query(MarkdownBlock).remove_class("-cursor")
         blocks = list(self.query("Markdown > MarkdownBlock").results(MarkdownBlock))
         blocks[block_cursor].add_class("-cursor")
+        self.cursor.follow(blocks[block_cursor])
         self.contents.release_anchor()
         self.contents.scroll_to_center(blocks[block_cursor])
         # blocks[block_cursor].scroll_visible()

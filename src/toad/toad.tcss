@@ -19,27 +19,26 @@ Conversation {
             height: auto;
         }  
     }
-    # Markdown {
-    #     padding-left: 1;
-        
-    # }
-    #contents > * {
-        margin: 1 0 0 0; 
-        & > MarkdownBlock {            
-            &.-cursor {
-                
-                outline-left: outer $block-cursor-background;
-                
-            }
-        }
+    
+    #contents > * {                        
         & > MarkdownBlock:last-child {
             margin-bottom: 0;     
-        }
+        }        
     }
     
     
     Markdown {
-       
+       padding: 0 2;       
+    }
+
+    Cursor {
+        width: 2;
+        height: 1;                
+        border-left: outer $accent;        
+        overlay: screen;  
+        &.-blink {
+            visibility: hidden;            
+        }          
     }
 }
 
