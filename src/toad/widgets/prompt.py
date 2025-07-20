@@ -39,6 +39,9 @@ class Prompt(containers.VerticalGroup):
     def focus(self) -> None:
         self.query(MarkdownTextArea).focus()
 
+    def append(self, text: str) -> None:
+        self.query_one(MarkdownTextArea).insert(text)
+
     def compose(self) -> ComposeResult:
         yield MarkdownTextArea()
         with containers.HorizontalGroup():

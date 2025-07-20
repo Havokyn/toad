@@ -13,14 +13,14 @@ Conversation {
     max-width: 100;    
     background: black 10%;
     layers: base prompt;
-    Prompt {
+    # Prompt {
         
-        dock: bottom;
-        width: 1fr; 
-        TextArea {
-            height: auto;
-        }  
-    }
+    #     dock: bottom;
+    #     width: 1fr; 
+    #     TextArea {
+    #         height: auto;
+    #     }  
+    # }
     
     #contents > * {                        
         & > MarkdownBlock:last-child {
@@ -62,8 +62,13 @@ Welcome {
 }
 
 Prompt {
+    dock: bottom;
     padding-top: 1;
     max-height: 50%;
+    TextArea {
+        height: auto;
+        max-height: 1fr;
+    }
     CondensedPath {
         margin: 1 1;
         width: 1fr;

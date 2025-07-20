@@ -345,8 +345,7 @@ class Conversation(containers.Vertical):
 
     @property
     def blocks(self) -> list[MarkdownBlock]:
-        # TODO: cache this
-        if self._blocks is None:
+        if self._blocks is None or self.busy_count:
             self._blocks = [
                 block
                 for response in self.contents.query_children(AgentResponse)
@@ -396,6 +395,11 @@ class Conversation(containers.Vertical):
         if (block := self.cursor_block) is not None and block.source:
             self.app.copy_to_clipboard(block.source)
             self.notify("Copied to clipboard")
+
+    def action_copy_to_prompt(self) -> None:
+        if (block := self.cursor_block) is not None and block.source:
+            self.block_cursor = -1
+            self.prompt.append(block.source)
 
     def watch_block_cursor(self, block_cursor: int) -> None:
         if block_cursor == -1:
