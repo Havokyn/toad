@@ -4,7 +4,7 @@ import os
 from typing import NamedTuple
 
 
-from textual.geometry import Size, clamp
+from textual.geometry import Size, clamp, Region
 from textual.cache import LRUCache
 
 from textual.content import Content
@@ -82,9 +82,10 @@ class ANSILog(ScrollView, can_focus=True):
 
     @property
     def _width(self) -> int:
-        if self.minimum_terminal_width == -1 and self.scrollable_content_region.width:
-            self.minimum_terminal_width = self.scrollable_content_region.width
-        width = max(self.minimum_terminal_width, self.scrollable_content_region.width)
+        window_width = self.scrollable_content_region.width
+        if self.minimum_terminal_width == -1 and window_width:
+            self.minimum_terminal_width = window_width
+        width = max(self.minimum_terminal_width, window_width)
         return width
 
     @property
@@ -152,7 +153,6 @@ class ANSILog(ScrollView, can_focus=True):
         folded_lines = self._folded_lines
 
         for ansi_token in self._ansi_stream.feed(text):
-            self.log(ansi_token)
             (
                 delta_x,
                 delta_y,
@@ -180,7 +180,6 @@ class ANSILog(ScrollView, can_focus=True):
                         line.content[end_replace + 1 :],
                     )
                 else:
-                    print("*", cursor_line_offset)
                     updated_line = Content.assemble(
                         line.content[:cursor_line_offset],
                         content,
@@ -201,7 +200,6 @@ class ANSILog(ScrollView, can_focus=True):
                 self.cursor_offset = absolute_x
             if absolute_y is not None:
                 self.cursor_line = max(0, absolute_y)
-            print(self.cursor_line, self.cursor_offset)
 
     def _fold_line(self, line_no: int, line: Content, width: int) -> list[LineFold]:
         if not width:
@@ -234,7 +232,6 @@ class ANSILog(ScrollView, can_focus=True):
         self.virtual_size = Size(width, len(self._folded_lines))
 
     def add_line(self, content: Content) -> None:
-        print("add_line", self.line_count)
         line_no = self.line_count
         width = self._width
         line_record = LineRecord(content, self._fold_line(line_no, content, width))
@@ -244,9 +241,6 @@ class ANSILog(ScrollView, can_focus=True):
         folds = line_record.folds
         self._line_to_fold.append(len(self._folded_lines))
         self._folded_lines.extend(folds)
-        print(self._line_to_fold)
-        print(len(self._folded_lines))
-
         self.virtual_size = Size(width, len(self._folded_lines))
 
     def update_line(self, line_index: int, line: Content) -> None:
@@ -263,15 +257,17 @@ class ANSILog(ScrollView, can_focus=True):
         del self._line_to_fold[line_index:]
         del self._folded_lines[fold_line:]
 
+        refresh_lines: list[int] = []
         for line_no in range(line_index, self.line_count):
             line_record = self._lines[line_no]
             self._line_to_fold.append(len(self._folded_lines))
             for fold in line_record.folds:
                 self._folded_lines.append(fold)
-                self.refresh_line(fold_line)
-                fold_line += 1
+                refresh_lines.append(fold_line)
 
-        self.virtual_size = Size(self._width, len(self._folded_lines))
+        width = self._width
+        self.virtual_size = Size(width, len(self._folded_lines))
+        self.refresh(*[Region(0, line_no, width, 1) for line_no in refresh_lines])
 
     def render_line(self, y: int) -> Strip:
         scroll_x, scroll_y = self.scroll_offset
