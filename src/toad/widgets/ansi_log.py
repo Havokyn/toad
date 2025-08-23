@@ -83,14 +83,15 @@ class ANSILog(ScrollView, can_focus=False):
         self.max_window_width = 0
         self._reflow_width: int | None = None
 
+        self._width = 80
+
         super().__init__(name=name, id=id, classes=classes, disabled=disabled)
 
     @property
     def current_directory(self) -> str:
         return self._ansi_stream.current_directory
 
-    @property
-    def _width(self) -> int:
+    def _update_width(self) -> None:
         window_width = self.scrollable_content_region.width or 80
         self.max_window_width = max(self.max_window_width, window_width)
         if self.minimum_terminal_width == -1 and window_width:
@@ -99,7 +100,7 @@ class ANSILog(ScrollView, can_focus=False):
             self.minimum_terminal_width,
             max(min(self.max_line_width, self.max_window_width), window_width),
         )
-        return width
+        self._width = width
 
     @property
     def line_count(self) -> int:
@@ -129,6 +130,7 @@ class ANSILog(ScrollView, can_focus=False):
 
     def on_mount(self):
         self.anchor()
+        self._update_width()
 
     def notify_style_update(self) -> None:
         super().notify_style_update()
@@ -155,6 +157,7 @@ class ANSILog(ScrollView, can_focus=False):
 
     def on_resize(self) -> None:
         if self._width != self._reflow_width:
+            self._update_width()
             self._reflow()
             self._reflow_width = self._width
             self._clear_caches()
@@ -305,6 +308,7 @@ class ANSILog(ScrollView, can_focus=False):
         self.refresh(Region(0, line_no, self._width, refresh_lines))
 
     def on_idle(self):
+        self._update_width()
         self._update_virtual_size()
 
     def render_line(self, y: int) -> Strip:
