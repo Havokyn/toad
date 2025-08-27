@@ -27,6 +27,10 @@ Conversation {
         # scrollbar-gutter: stable;
         scrollbar-size-vertical: 2;
         height: 1fr;
+        border: blank;
+        &:focus {
+            border: heavy $secondary ;
+        }
     }
 
     &.-scrollbar-thin {
@@ -373,13 +377,17 @@ MainScreen {
     background: $background;
 
     DirectoryTree {
+        border: tall transparent;
+        &:focus {
+            border: tall $secondary;
+        }
         display: None;
    
         background: transparent;
         width: auto;
         max-width: 45%;
         dock: left;
-        padding: 1;
+        padding: 0 2;
     }
     &.-show-tree {
         DirectoryTree {

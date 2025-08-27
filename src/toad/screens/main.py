@@ -42,7 +42,7 @@ class MainScreen(Screen, can_focus=False):
             yield DirectoryTree("./")
             yield Explain()
             yield Conversation()
-            yield Footer()
+        yield Footer()
 
     def on_mount(self) -> None:
         # self.directory_tree.show_guides = False
