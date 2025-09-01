@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import os
-from typing import NamedTuple, Sequence
+from typing import Iterable, NamedTuple, Sequence
 
 
 from textual.geometry import Size, Region
@@ -16,6 +16,7 @@ from textual.selection import Selection
 from textual.filter import LineFilter
 
 from toad.ansi import ANSIStream
+from toad.menus import MenuItem
 
 
 class LineFold(NamedTuple):
@@ -124,6 +125,9 @@ class ANSILog(ScrollView, can_focus=False):
                 break
             position += len(folded_line.content)
         return position
+
+    def get_block_content(self) -> str | None:
+        return "\n".join([line.content.plain for line in self._lines])
 
     def get_line_filters(self) -> Sequence[LineFilter]:
         return []

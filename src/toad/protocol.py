@@ -1,6 +1,8 @@
-from typing import Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable, Iterable
 
 from textual.widget import Widget
+
+from toad.menus import MenuItem
 
 
 @runtime_checkable
@@ -10,3 +12,9 @@ class BlockProtocol(Protocol):
     def get_cursor_block(self) -> Widget | None: ...
     def block_cursor_clear(self) -> None: ...
     def block_select(self, widget: Widget) -> None: ...
+
+
+@runtime_checkable
+class MenuProtocol(Protocol):
+    def get_block_menu(self) -> Iterable[MenuItem]: ...
+    def get_block_content(self) -> str | None: ...

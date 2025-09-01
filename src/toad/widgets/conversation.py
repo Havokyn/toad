@@ -24,15 +24,17 @@ import llm
 from toad import messages
 from toad.app import ToadApp
 from toad.widgets.menu import Menu
+from toad.widgets.note import Note
 from toad.widgets.prompt import HighlightedTextArea, Prompt
 from toad.widgets.throbber import Throbber
 from toad.widgets.user_input import UserInput
 from toad.widgets.explain import Explain
 from toad.shell import Shell, CurrentWorkingDirectoryChanged
 from toad.slash_command import SlashCommand
-from toad.block_protocol import BlockProtocol
+from toad.protocol import BlockProtocol, MenuProtocol
 
-from toad.menus import CONVERSATION_MENUS
+
+from toad.menus import CONVERSATION_MENUS, MenuItem
 
 if TYPE_CHECKING:
     from toad.widgets.ansi_log import ANSILog
@@ -440,9 +442,9 @@ class Conversation(containers.Vertical):
         return cursor_block
 
     def get_cursor_block[BlockType](
-        self, block_type: type[BlockType]
+        self, block_type: type[BlockType] = Widget
     ) -> BlockType | None:
-        """Get the cursor block it it matches a type.
+        """Get the cursor block if it matches a type.
 
         Args:
             block_type: The expected type.
@@ -485,25 +487,35 @@ class Conversation(containers.Vertical):
 
     @on(Menu.OptionSelected)
     async def on_menu_option_selected(self, event: Menu.OptionSelected) -> None:
-        await self.run_action(event.action)
+        self.window.focus(scroll_visible=False)
+        await event.menu.remove()
 
-    @on(events.DescendantFocus)
-    def on_descendant_focus(self, event: events.DescendantFocus):
-        if isinstance(event.widget, HighlightedTextArea):
-            self.cursor_offset = -1
+        if event.action is not None:
+            await self.run_action(event.action, {"block": event.owner})
+        # await event.menu.remove()
+        # self.cursor.visible = True
 
-    @on(events.DescendantBlur)
-    def on_descendant_blur(self, event: events.DescendantBlur):
-        if isinstance(event.widget, Window):
-            self.cursor.visible = False
+    # @on(events.DescendantFocus)
+    # def on_descendant_focus(self, event: events.DescendantFocus):
+    #     if isinstance(event.widget, HighlightedTextArea):
+    #         self.cursor_offset = -1
+
+    # @on(events.DescendantBlur)
+    # def on_descendant_blur(self, event: events.DescendantBlur):
+    #     if isinstance(event.widget, Window):
+    #         self.cursor.visible = False
 
     @on(Menu.Dismissed)
-    def on_menu_dismissed(self, event: Menu.Dismissed) -> None:
+    async def on_menu_dismissed(self, event: Menu.Dismissed) -> None:
         event.stop()
-        self.cursor.visible = True
-        with self.window.prevent(events.DescendantFocus):
-            self.window.focus(scroll_visible=False)
-        event.menu.remove()
+        # self.cursor.visible = True
+
+        # with self.window.prevent(events.DescendantFocus):
+        #     self.window.focus(scroll_visible=False)
+
+        self.window.focus(scroll_visible=False)
+        await event.menu.remove()
+        # self.cursor.visible = True
 
     @on(CurrentWorkingDirectoryChanged)
     def on_current_working_directory_changed(
@@ -520,9 +532,6 @@ class Conversation(containers.Vertical):
             SlashCommand("/about", "About Toad"),
             SlashCommand("/help", "Open Help"),
             SlashCommand("/set", "Change a setting"),
-            SlashCommand("/foo", "Change a setting"),
-            SlashCommand("/bar", "Change a setting"),
-            SlashCommand("/baz", "Change a setting"),
         ]
         self.call_after_refresh(self.post_welcome)
         self.app.settings_changed_signal.subscribe(self, self._settings_changed)
@@ -543,17 +552,14 @@ class Conversation(containers.Vertical):
 
         # await self.post(Welcome(classes="note", name="welcome"), anchor=False)
         await self.post(
-            Static(
-                f"Settings read from [$text-success]'{self.app.settings_path}'",
-                classes="note",
-            ),
+            Note(f"Settings read from [$text-success]'{self.app.settings_path}'"),
             anchor=False,
         )
         notes_path = Path(__file__).parent / "../../../notes.md"
-        from textual.widgets import Markdown
+        from toad.widgets.markdown_note import MarkdownNote
 
         await self.post(
-            Markdown(notes_path.read_text(), name="read_text", classes="note")
+            MarkdownNote(notes_path.read_text(), name="read_text", classes="note")
         )
 
         # from toad.widgets.agent_response import AgentResponse
@@ -681,54 +687,88 @@ class Conversation(containers.Vertical):
                 cursor_block.block_cursor_down()
         self.refresh_block_cursor()
 
-    def action_dismiss(self) -> None:
-        self.cursor_offset = -1
+    # def action_dismiss(self) -> None:
+    #     self.cursor_offset = -1
 
     def focus_prompt(self) -> None:
         self.cursor_offset = -1
+        self.cursor.display = False
         self.window.scroll_end()
         self.prompt.focus()
 
     async def action_select_block(self) -> None:
-        if (block := self.get_cursor_block(MarkdownBlock)) is None:
+        if (block := self.get_cursor_block(Widget)) is None:
             return
 
-        if block.name is None:
+        menu_options = [
+            MenuItem("Copy to clipboard", "copy_to_clipboard", "c"),
+            MenuItem("Copy to prompt", "copy_to_prompt", "p"),
+        ]
+
+        if isinstance(block, MenuProtocol):
+            menu_options.extend(block.get_block_menu())
+            menu = Menu(block, menu_options)
+
+        elif isinstance(block, MarkdownBlock):
+            if block.name is None:
+                self.app.bell()
+                return
+
+            menu_options.append(
+                MenuItem("Explain this", "explain", "e"),
+            )
+            menu_options.extend(CONVERSATION_MENUS.get(block.name, []))
+
+            from toad.code_analyze import get_special_name_from_code
+
+            if (
+                block.name == "fence"
+                and isinstance(block, MarkdownFence)
+                and block.source
+            ):
+                for numeral, name in enumerate(
+                    get_special_name_from_code(block.source, block.lexer), 1
+                ):
+                    menu_options.append(
+                        MenuItem(
+                            f"Explain '{name}'", f"explain('{name}')", f"{numeral}"
+                        )
+                    )
+
+            menu = Menu(block, menu_options)
+        else:
+            self.notify("This block has no menu", title="Menu", severity="information")
             self.app.bell()
             return
-        menu_options = CONVERSATION_MENUS.get(block.name, []).copy()
 
-        from toad.code_analyze import get_special_name_from_code
-
-        if block.name == "fence" and isinstance(block, MarkdownFence) and block.source:
-            for numeral, name in enumerate(
-                get_special_name_from_code(block.source, block.lexer), 1
-            ):
-                menu_options.append(
-                    Menu.Item(f"explain('{name}')", f"Explain '{name}'", f"{numeral}")
-                )
-
-        menu = Menu(
-            [
-                Menu.Item("explain", "Explain this", "e"),
-                Menu.Item("copy_to_clipboard", "Copy to clipboard", "c"),
-                Menu.Item("copy_to_prompt", "Copy to prompt", "p"),
-                *menu_options,
-            ]
-        )
         menu.offset = Offset(1, block.region.offset.y)
         await self.mount(menu)
         menu.focus()
 
     def action_copy_to_clipboard(self) -> None:
-        if (block := self.get_cursor_block(MarkdownBlock)) is not None and block.source:
-            self.app.copy_to_clipboard(block.source)
+        block = self.get_cursor_block()
+        if isinstance(block, MenuProtocol):
+            text = block.get_block_content()
+        elif isinstance(block, MarkdownBlock):
+            text = block.source
+        else:
+            return
+        if text:
+            self.app.copy_to_clipboard(text)
             self.notify("Copied to clipboard")
 
     def action_copy_to_prompt(self) -> None:
-        if (block := self.get_cursor_block(MarkdownBlock)) is not None and block.source:
-            self.cursor_offset = -1
-            self.prompt.append(block.source)
+        block = self.get_cursor_block()
+        if isinstance(block, MenuProtocol):
+            text = block.get_block_content()
+        elif isinstance(block, MarkdownBlock):
+            text = block.source
+        else:
+            return
+
+        if text:
+            self.prompt.append(text)
+            self.focus_prompt()
 
     def action_explain(self, topic: str | None = None) -> None:
         if (block := self.get_cursor_block(MarkdownBlock)) is not None and block.source:
@@ -785,6 +825,6 @@ class Conversation(containers.Vertical):
         command, _, parameters = text[1:].partition(" ")
         if command == "about":
             from toad import about
-            from toad.widgets.note import Note
+            from toad.widgets.markdown_note import MarkdownNote
 
-            await self.post(Note(about.render()))
+            await self.post(MarkdownNote(about.render()))

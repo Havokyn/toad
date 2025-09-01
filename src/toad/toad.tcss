@@ -20,7 +20,7 @@ App.-hide-footer Footer {
     display: none;
 }
 
-Note {
+Note,MarkdownNote {
     padding: 0 1 0 0;
 }
 
