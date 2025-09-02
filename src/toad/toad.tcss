@@ -22,6 +22,10 @@ App.-hide-footer Footer {
 
 Note,MarkdownNote {
     padding: 0 1 0 0;
+    &.about MarkdownTable {
+        # Make the tables compact in /about
+        width: auto;
+    }
 }
 
 Conversation {
@@ -114,13 +118,14 @@ Conversation {
     }
 
     ShellResult {        
-        border-left: vkey $primary;
-        background: $foreground 4%;
+        border-left: wide $primary;
+        background: $foreground 4%;        
         padding: 1 0;   
         margin: 1 1 1 0; 
         #prompt {
             margin: 0 1 0 0;
             color: $text-primary;
+            
         }    
     }
     
@@ -135,7 +140,7 @@ Conversation {
     }
 
     UserInput {
-        border-left: vkey $secondary;
+        border-left: wide $secondary;
         background: $foreground 4%;
         padding: 1 1 1 0;   
         margin: 1 1 1 0; 
@@ -438,16 +443,6 @@ Explain {
     width: 100%;    
 }
 
-RunOutput {
-    border-left: vkey $secondary;
-    background: $foreground 4%;
-    padding: 0 1;   
-    margin: 1 0;    
-    # overflow: auto;
-    # & > Label {
-    #     width: auto;
-    # }
-}
 
 Footer {
     background: transparent;

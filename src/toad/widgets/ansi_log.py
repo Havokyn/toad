@@ -126,8 +126,24 @@ class ANSILog(ScrollView, can_focus=False):
             position += len(folded_line.content)
         return position
 
-    def get_block_content(self) -> str | None:
-        return "\n".join([line.content.plain for line in self._lines])
+    def get_block_menu(self) -> Iterable[MenuItem]:
+        return
+        yield
+
+    #     yield MenuItem("Copy to clipboard", "copy_to_clipboard", "c")
+    #     yield MenuItem("Copy to prompt", "copy_to_prompt", "p")
+
+    def action_copy_to_clipboard(self) -> None:
+        self.notify("Copy to clipboard")
+
+    def get_block_content(self, destination: str) -> str | None:
+        text_content = "\n".join(
+            [line.content.plain.expandtabs() for line in self._lines]
+        )
+        if destination == "prompt":
+            return f"```\n{text_content}\n```"
+        else:
+            return text_content
 
     def get_line_filters(self) -> Sequence[LineFilter]:
         return []

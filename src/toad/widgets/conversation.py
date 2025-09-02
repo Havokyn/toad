@@ -754,7 +754,7 @@ class Conversation(containers.Vertical):
     def action_copy_to_clipboard(self) -> None:
         block = self.get_cursor_block()
         if isinstance(block, MenuProtocol):
-            text = block.get_block_content()
+            text = block.get_block_content("clipboard")
         elif isinstance(block, MarkdownBlock):
             text = block.source
         else:
@@ -766,7 +766,7 @@ class Conversation(containers.Vertical):
     def action_copy_to_prompt(self) -> None:
         block = self.get_cursor_block()
         if isinstance(block, MenuProtocol):
-            text = block.get_block_content()
+            text = block.get_block_content("prompt")
         elif isinstance(block, MarkdownBlock):
             text = block.source
         else:
@@ -833,4 +833,4 @@ class Conversation(containers.Vertical):
             from toad import about
             from toad.widgets.markdown_note import MarkdownNote
 
-            await self.post(MarkdownNote(about.render()))
+            await self.post(MarkdownNote(about.render(), classes="about"))

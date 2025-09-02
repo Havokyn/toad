@@ -9,5 +9,5 @@ class MarkdownNote(Markdown):
         return
         yield
 
-    def get_block_content(self) -> str | None:
+    def get_block_content(self, destination: str) -> str | None:
         return self.source

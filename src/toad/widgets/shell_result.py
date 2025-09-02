@@ -1,14 +1,14 @@
 from __future__ import annotations
+from typing import Iterable
 
 from textual.app import ComposeResult
 from textual import containers
 from textual.highlight import highlight
 from textual.widgets import Static
-from textual import work
 
-from toad.widgets.ansi_log import ANSILog
+
+from toad.menus import MenuItem
 from toad.widgets.non_selectable_label import NonSelectableLabel
-from toad.shell import Shell
 
 
 class ShellResult(containers.HorizontalGroup):
@@ -27,3 +27,9 @@ class ShellResult(containers.HorizontalGroup):
     def compose(self) -> ComposeResult:
         yield NonSelectableLabel("$", id="prompt")
         yield Static(highlight(self._command, language="sh"))
+
+    def get_block_menu(self) -> Iterable[MenuItem]:
+        yield from ()
+
+    def get_block_content(self, destination: str) -> str | None:
+        return self._command

@@ -9,7 +9,7 @@ class Note(Static):
         return
         yield
 
-    def get_block_content(self) -> str | None:
+    def get_block_content(self, destination: str) -> str | None:
         return str(self.render())
 
     def action_hello(self, message: str) -> None:
