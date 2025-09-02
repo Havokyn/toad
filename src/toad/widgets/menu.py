@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from typing import NamedTuple
-
 from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -11,6 +9,9 @@ from textual.message import Message
 from textual.widgets import ListView, ListItem, Label
 from textual._partition import partition
 from textual import events
+from textual.widget import Widget
+
+from toad.menus import MenuItem
 
 
 class NonSelectableLabel(Label):
@@ -20,7 +21,7 @@ class NonSelectableLabel(Label):
 class MenuOption(ListItem):
     ALLOW_SELECT = False
 
-    def __init__(self, action: str, description: str, key: str | None) -> None:
+    def __init__(self, action: str | None, description: str, key: str | None) -> None:
         self._action = action
         self._description = description
         self._key = key
@@ -43,8 +44,8 @@ class Menu(ListView, can_focus=True):
         overlay: screen;  
         position: absolute;
         color: $foreground;
-        background: $panel-darken-1;
-        border: solid $foreground;
+        background: $panel;
+        border: block $panel;
         constrain: inside inside;
    
         & > MenuOption {         
@@ -91,7 +92,8 @@ class Menu(ListView, can_focus=True):
         """The user selected on of the options."""
 
         menu: Menu
-        action: str
+        owner: Widget
+        action: str | None
 
     @dataclass
     class Dismissed(Message):
@@ -99,12 +101,8 @@ class Menu(ListView, can_focus=True):
 
         menu: Menu
 
-    class Item(NamedTuple):
-        action: str
-        description: str
-        key: str | None = None
-
-    def __init__(self, options: list[Item], *args, **kwargs) -> None:
+    def __init__(self, owner: Widget, options: list[MenuItem], *args, **kwargs) -> None:
+        self._owner = owner
         self._options = options
         super().__init__(*args, **kwargs)
 
@@ -113,12 +111,12 @@ class Menu(ListView, can_focus=True):
             lambda option: option.key is None, self._options
         )
         self.extend(
-            MenuOption(action, description, key)
-            for action, description, key in with_keys
+            MenuOption(menu_item.action, menu_item.description, menu_item.key)
+            for menu_item in with_keys
         )
         self.extend(
-            MenuOption(action, description, key)
-            for action, description, key in without_keys
+            MenuOption(menu_item.action, menu_item.description, menu_item.key)
+            for menu_item in without_keys
         )
 
     def on_mount(self) -> None:
@@ -126,8 +124,10 @@ class Menu(ListView, can_focus=True):
 
     async def activate_index(self, index: int) -> None:
         action = self._options[index].action
-        self.post_message(self.OptionSelected(self, action))
-        await self.remove()
+        self.post_message(self.OptionSelected(self, self._owner, action))
+        # self.display = False
+        # await self.remove()
+        # self.post_message(self.Dismissed(self))
 
     async def action_dismiss(self) -> None:
         self.post_message(self.Dismissed(self))

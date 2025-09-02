@@ -4,15 +4,16 @@ import json
 
 import platformdirs
 
+from rich import terminal_theme
+
 from textual.reactive import var, reactive
-from textual.app import App, ComposeResult
-from textual.binding import Binding
+from textual.app import App
 from textual.screen import Screen
 from textual.signal import Signal
 
 from toad.settings import Schema, Settings
 from toad.settings_schema import SCHEMA
-from toad.screens.main import MainScreen
+
 from toad import atomic
 
 
@@ -22,8 +23,9 @@ class ToadApp(App):
     CSS_PATH = "toad.tcss"
 
     _settings = var(dict)
-    column = reactive(False)
-    column_width = reactive(100)
+    column: reactive[bool] = reactive(False)
+    column_width: reactive[int] = reactive(100)
+    scrollbar: reactive[str] = reactive("normal")
 
     def __init__(self) -> None:
         self.settings_changed_signal = Signal(self, "settings_changed")
@@ -67,15 +69,23 @@ class ToadApp(App):
 
     def setting_updated(self, key: str, value: object) -> None:
         if key == "ui.column":
-            self.column = value
+            if isinstance(value, bool):
+                self.column = value
         elif key == "ui.column-width":
-            self.column_width = value
+            if isinstance(value, int):
+                self.column_width = value
         elif key == "ui.theme":
-            self.theme = value
+            if isinstance(value, str):
+                self.theme = value
+        elif key == "ui.scrollbar":
+            if isinstance(value, str):
+                self.scrollbar = value
+        elif key == "ui.footer":
+            self.set_class(not bool(value), "-hide-footer")
 
         self.settings_changed_signal.publish((key, value))
 
-    def on_ready(self) -> None:
+    def on_load(self) -> None:
         settings_path = self.settings_path
         if settings_path.exists():
             settings = json.loads(settings_path.read_text("utf-8"))
@@ -85,13 +95,15 @@ class ToadApp(App):
                 json.dumps(settings, indent=4, separators=(", ", ": ")), "utf-8"
             )
             self.notify(f"Wrote default settings to {settings_path}")
+        self.ansi_theme_dark = terminal_theme.DIMMED_MONOKAI
         self._settings = settings
         self.settings.set_all()
 
-    def on_mount(self) -> None:
-        self.theme = "dracula"
-
     def get_default_screen(self) -> Screen:
+        from toad.screens.main import MainScreen
+
         return MainScreen().data_bind(
-            column=ToadApp.column, column_width=ToadApp.column_width
+            column=ToadApp.column,
+            column_width=ToadApp.column_width,
+            scrollbar=ToadApp.scrollbar,
         )

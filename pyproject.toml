@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "textual[syntax]>=5.1.0",
+    "textual[syntax]>=6.0.0",
     "textual-dev>=1.7.0",
     "textual-speedups>=0.2.0",
     "click>=8.2.1",
@@ -14,6 +14,7 @@ dependencies = [
     "tree-sitter>=0.24.0",
     "httpx>=0.28.1",
     "platformdirs>=4.3.8",
+    "rich",
 ]
 
 [tool.uv.workspace]
@@ -23,6 +24,7 @@ members = [
 
 [tool.uv.sources]
 textual = { path = "../textual", editable = true }
+rich = { path = "../rich", editable = true }
 
 [project.scripts]
 toad = "toad.cli:main"
@@ -30,3 +32,8 @@ toad = "toad.cli:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pyinstrument>=5.1.1",
+]

@@ -29,6 +29,13 @@ SCHEMA: list[SchemaDict] = [
         "type": "object",
         "fields": [
             {
+                "key": "footer",
+                "title": "Enabled footer?",
+                "help": "Disable the footer if you want additional room.",
+                "type": "boolean",
+                "default": True,
+            },
+            {
                 "key": "column",
                 "title": "Enable column?",
                 "help": "Enable for a fixed column size. Disable to use the full screen width.",
@@ -42,6 +49,13 @@ SCHEMA: list[SchemaDict] = [
                 "type": "integer",
                 "default": 100,
                 "validate": [{"type": "minimum", "value": 40}],
+            },
+            {
+                "key": "scrollbar",
+                "title": "Scrollbar size",
+                "type": "choices",
+                "default": "normal",
+                "choices": ["normal", "thin", "hidden"],
             },
             {
                 "key": "theme",

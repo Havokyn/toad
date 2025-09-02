@@ -258,7 +258,7 @@ class Settings:
         setting = self._settings
         for last, sub_key in loop_last(parse_key(key)):
             if last:
-                if setting[sub_key] != value:
+                if setting.get(sub_key) != value:
                     setting[sub_key] = value
                     self._changed = True
             else:

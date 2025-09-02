@@ -1,9 +1,8 @@
 from __future__ import annotations
 
+
 from functools import cached_property
 from typing import TYPE_CHECKING
-import asyncio
-from contextlib import suppress
 from pathlib import Path
 
 from textual import on, work
@@ -14,27 +13,32 @@ from textual import events
 from textual.binding import Binding
 from textual.widget import Widget
 from textual.widgets import Static
-from textual.widgets._markdown import MarkdownBlock, MarkdownFence
-from textual.geometry import Offset, Spacing
-from textual.reactive import var
-from textual.css.query import NoMatches
+from textual.widgets.markdown import MarkdownBlock, MarkdownFence
+from textual.geometry import Offset
+from textual.reactive import var, Initialize
 from textual.layouts.grid import GridLayout
 
 
 import llm
 
 from toad import messages
+from toad.app import ToadApp
 from toad.widgets.menu import Menu
-from toad.widgets.prompt import MarkdownTextArea, Prompt
+from toad.widgets.note import Note
+from toad.widgets.prompt import Prompt
 from toad.widgets.throbber import Throbber
 from toad.widgets.user_input import UserInput
 from toad.widgets.explain import Explain
-from toad.widgets.run_output import RunOutput
+from toad.widgets.highlighted_textarea import HighlightedTextArea
+from toad.shell import Shell, CurrentWorkingDirectoryChanged
+from toad.slash_command import SlashCommand
+from toad.protocol import BlockProtocol, MenuProtocol
 
-from toad.menus import CONVERSATION_MENUS
+
+from toad.menus import CONVERSATION_MENUS, MenuItem
 
 if TYPE_CHECKING:
-    from toad.app import ToadApp
+    from toad.widgets.ansi_log import ANSILog
 
 MD = """\
 # Textual Markdown Browser - Demo
@@ -243,6 +247,77 @@ I would like to add controls to these widgets to export the table as CSV, which 
 #    - Where the fear has gone there will be nothing. Only I will remain.
 # """
 
+MD = """
+```python
+def mandelbrot(c: complex, max_iter: int) -> int:
+    \"\"\"Determine the number of iterations for a point in the Mandelbrot set.
+
+    Args:
+        c (complex): The complex point to test.
+        max_iter (int): The maximum number of iterations to test.
+
+    Returns:
+        int: Number of iterations before escape or max_iter.
+    \"\"\"
+    z = 0 + 0j
+    for n in range(max_iter):
+        if abs(z) > 2:
+            return n
+        z = z * z + c
+    return max_iter
+
+def colorize(iter_count: int, max_iter: int) -> str:
+    \"\"\"Get an ANSI color code based on the iteration count.
+
+    Args:
+        iter_count (int): Number of iterations completed before escape.
+        max_iter (int): Maximum number of iterations allowed.
+
+    Returns:
+        str: ANSI escape code for color.
+    \"\"\"
+    if iter_count == max_iter:
+        return "\\033[48;5;0m"  # Black background for points in the set
+    else:
+        # Create a gradient from 17 to 231 (blue to red) for escaping points
+        color_code = 17 + int((iter_count / max_iter) * 214)
+        return f"\\033[48;5;{color_code}m"
+
+def draw_mandelbrot(width: int, height: int, max_iter: int) -> None:
+    \"\"\"Draw the Mandelbrot set in the terminal using ANSI colors.
+
+    Args:
+        width (int): Width of the output in terminal characters.
+        height (int): Height of the output in terminal rows.
+        max_iter (int): Maximum number of iterations for Mandelbrot calculation.
+    \"\"\"
+    for y in range(height):
+        for x in range(width):
+            # Map the (x, y) pixel to a point in the complex plane
+            real = (x / width) * 3.5 - 2.5
+            imag = (y / height) * 2.0 - 1.0
+            c = complex(real, imag)
+            
+            # Calculate the number of iterations
+            iter_count = mandelbrot(c, max_iter)
+            
+            # Get the color for this point and print a space (box)
+            color = colorize(iter_count, max_iter)
+            print(f"{color}  ", end="")
+
+        # Reset color and move to the next line
+        print("\\033[0m")
+
+# Configuration for drawing
+width = 80    # Number of characters wide
+height = 40   # Number of character rows
+max_iter = 100  # Maximum iterations for Mandelbrot calculation
+
+# Draw the Mandelbrot set
+draw_mandelbrot(width, height, max_iter)
+```
+"""
+
 
 class Cursor(Static):
     follow_widget: var[Widget | None] = var(None)
@@ -254,14 +329,17 @@ class Cursor(Static):
         self.set_interval(0.4, self._update_follow)
 
     def _update_blink(self) -> None:
-        self.blink = not self.blink
+        if self.query_ancestor(Window).has_focus:
+            self.blink = not self.blink
+        else:
+            self.blink = True
 
     def watch_follow_widget(self, widget: Widget | None) -> None:
         self.display = widget is not None
 
     def _update_follow(self) -> None:
-        if self.follow_widget:
-            self.styles.height = max(1, self.follow_widget.size.height)
+        if self.follow_widget and self.follow_widget.is_attached:
+            self.styles.height = max(1, self.follow_widget.outer_size.height)
             follow_y = (
                 self.follow_widget.virtual_region.y
                 + self.follow_widget.parent.virtual_region.y
@@ -285,10 +363,6 @@ class Cursor(Static):
 class Contents(containers.VerticalGroup, can_focus=False):
     pass
 
-    # @on(events.Focus)
-    # def on_focus(self) -> None:
-    #     self.query_one(Cursor).visible = True
-
 
 class ContentsGrid(containers.Grid):
     def pre_layout(self, layout) -> None:
@@ -303,16 +377,29 @@ class Window(containers.VerticalScroll):
 
 class Conversation(containers.Vertical):
     BINDING_GROUP_TITLE = "Conversation"
+    CURSOR_BINDING_GROUP = Binding.Group(description="Block cursor")
     BINDINGS = [
-        Binding("alt+up", "cursor_up", "Block up", priority=True),
-        Binding("alt+down", "cursor_down", "Block down"),
+        Binding(
+            "alt+up",
+            "cursor_up",
+            "Block up",
+            priority=True,
+            group=CURSOR_BINDING_GROUP,
+        ),
+        Binding(
+            "alt+down",
+            "cursor_down",
+            "Block down",
+            group=CURSOR_BINDING_GROUP,
+        ),
         Binding("enter", "select_block", "Select"),
         Binding("escape", "dismiss", "Dismiss", show=False),
         Binding("f2,ctrl+comma", "settings", "Settings"),
     ]
 
     busy_count = var(0)
-    block_cursor = var(-1)
+    cursor_offset = var(-1, init=False)
+    project_path = var(Path("./").expanduser().absolute())
     _blocks: var[list[MarkdownBlock] | None] = var(None)
 
     throbber: getters.query_one[Throbber] = getters.query_one("#throbber")
@@ -320,8 +407,12 @@ class Conversation(containers.Vertical):
     window = getters.query_one(Window)
     cursor = getters.query_one(Cursor)
     prompt = getters.query_one(Prompt)
+    app = getters.app(ToadApp)
 
-    app: ToadApp
+    def create_shell(self) -> Shell:
+        return Shell(self)
+
+    shell: var[Shell] = var(Initialize(create_shell))
 
     def compose(self) -> ComposeResult:
         yield Throbber(id="throbber")
@@ -330,19 +421,45 @@ class Conversation(containers.Vertical):
                 with containers.VerticalGroup(id="cursor-container"):
                     yield Cursor()
                 yield Contents(id="contents")
-        yield Prompt()
+        yield Prompt().data_bind(project_path=Conversation.project_path)
 
     @cached_property
     def conversation(self) -> llm.Conversation:
         return llm.get_model(self.app.settings.get("llm.model", str)).conversation()
 
     @property
-    def cursor_block(self) -> MarkdownBlock | None:
+    def cursor_block(self) -> Widget | None:
         """The block next to the cursor, or `None` if no block cursor."""
-        blocks = self.blocks
-        if self.block_cursor < 0 or self.block_cursor >= len(blocks):
+        if self.cursor_offset == -1 or not self.contents.displayed_children:
             return None
-        return blocks[self.block_cursor]
+        try:
+            block_widget = self.contents.displayed_children[self.cursor_offset]
+        except IndexError:
+            return None
+        return block_widget
+
+    @property
+    def cursor_block_child(self) -> Widget | None:
+        if (cursor_block := self.cursor_block) is not None:
+            if isinstance(cursor_block, BlockProtocol):
+                return cursor_block.get_cursor_block()
+        return cursor_block
+
+    def get_cursor_block[BlockType](
+        self, block_type: type[BlockType] = Widget
+    ) -> BlockType | None:
+        """Get the cursor block if it matches a type.
+
+        Args:
+            block_type: The expected type.
+
+        Returns:
+            _type_: The instance or `None` if not selected, or wrong type.
+        """
+        cursor_block = self.cursor_block_child
+        if isinstance(cursor_block, block_type):
+            return cursor_block
+        return None
 
     @on(messages.WorkStarted)
     def on_work_started(self) -> None:
@@ -354,183 +471,313 @@ class Conversation(containers.Vertical):
 
     @on(messages.UserInputSubmitted)
     async def on_user_input_submitted(self, event: messages.UserInputSubmitted) -> None:
-        from toad.widgets.agent_response import AgentResponse
+        if event.shell:
+            await self.post_shell(event.body)
+            self.prompt.shell_mode = False
+        elif text := event.body.strip():
+            if text.startswith("/"):
+                await self.slash_command(text)
+            else:
+                from toad.widgets.agent_response import AgentResponse
 
-        await self.post(UserInput(event.body))
-        agent_response = AgentResponse(self.conversation)
-        await self.post(agent_response)
-        agent_response.send_prompt(event.body)
+                await self.post(UserInput(text))
+
+                agent_response = AgentResponse(self.conversation)
+                await self.post(agent_response)
+                agent_response.send_prompt(
+                    event.body,
+                    Path(self.prompt.current_directory.path).expanduser().absolute(),
+                )
 
     @on(Menu.OptionSelected)
     async def on_menu_option_selected(self, event: Menu.OptionSelected) -> None:
-        await self.run_action(event.action)
+        self.window.focus(scroll_visible=False)
+        await event.menu.remove()
 
-    @on(events.DescendantFocus)
-    def on_descendant_focus(self, event: events.DescendantFocus):
-        if isinstance(event.widget, MarkdownTextArea):
-            self.block_cursor = -1
+        if event.action is not None:
+            await self.run_action(event.action, {"block": event.owner})
+        # await event.menu.remove()
+        # self.cursor.visible = True
 
-    @on(events.DescendantBlur)
-    def on_descendant_blur(self, event: events.DescendantBlur):
-        if isinstance(event.widget, Window):
-            self.cursor.visible = False
+    # @on(events.DescendantFocus)
+    # def on_descendant_focus(self, event: events.DescendantFocus):
+    #     if isinstance(event.widget, HighlightedTextArea):
+    #         self.cursor_offset = -1
+
+    # @on(events.DescendantBlur)
+    # def on_descendant_blur(self, event: events.DescendantBlur):
+    #     if isinstance(event.widget, Window):
+    #         self.cursor.visible = False
 
     @on(Menu.Dismissed)
-    def on_menu_dismissed(self, event: Menu.Dismissed) -> None:
+    async def on_menu_dismissed(self, event: Menu.Dismissed) -> None:
         event.stop()
-        self.cursor.visible = True
-        with self.window.prevent(events.DescendantFocus):
-            self.window.focus(scroll_visible=False)
-        event.menu.remove()
-        # self.watch_block_cursor(self.block_cursor)
-        # self.window.focus()
         # self.cursor.visible = True
+
+        # with self.window.prevent(events.DescendantFocus):
+        #     self.window.focus(scroll_visible=False)
+
+        self.window.focus(scroll_visible=False)
+        await event.menu.remove()
+        # self.cursor.visible = True
+
+    @on(CurrentWorkingDirectoryChanged)
+    def on_current_working_directory_changed(
+        self, event: CurrentWorkingDirectoryChanged
+    ) -> None:
+        self.prompt.current_directory.path = event.path
 
     def watch_busy_count(self, busy: int) -> None:
         self.throbber.set_class(busy > 0, "-busy")
 
     async def on_mount(self) -> None:
+        self.prompt.focus()
+        self.prompt.slash_commands = [
+            SlashCommand("/about", "About Toad"),
+            SlashCommand("/help", "Open Help"),
+            SlashCommand("/set", "Change a setting"),
+        ]
         self.call_after_refresh(self.post_welcome)
         self.app.settings_changed_signal.subscribe(self, self._settings_changed)
+        self.start_shell()
+
+    @work
+    async def start_shell(self) -> None:
+        await self.shell.run()
 
     def _settings_changed(self, setting_item: tuple[str, str]) -> None:
         key, value = setting_item
         if key == "llm.model":
             self.conversation = llm.get_model(value).conversation()
-            self.notify(f"Updated LLM model to {value!r}", title="llm.model")
 
+    @work
     async def post_welcome(self) -> None:
-        from toad.widgets.welcome import Welcome
+        # from toad.widgets.welcome import Welcome
 
-        await self.post(Welcome(classes="note"), anchor=False)
+        # await self.post(Welcome(classes="note", name="welcome"), anchor=False)
         await self.post(
-            Static(
-                f"Settings read from [$text-success]'{self.app.settings_path}'",
-                classes="note",
-            )
+            Note(f"Settings read from [$text-success]'{self.app.settings_path}'"),
+            anchor=True,
         )
         notes_path = Path(__file__).parent / "../../../notes.md"
-        from textual.widgets import Markdown
+        from toad.widgets.markdown_note import MarkdownNote
 
-        await self.post(Markdown(notes_path.read_text(), classes="note"))
+        await self.post(
+            MarkdownNote(notes_path.read_text(), name="read_text", classes="note")
+        )
 
-        from toad.widgets.agent_response import AgentResponse
+        # from toad.widgets.agent_response import AgentResponse
 
-        agent_response = AgentResponse(self.conversation)
-        await self.post(agent_response)
-        agent_response.update(MD)
+        # agent_response = AgentResponse(self.conversation)
+        # await self.post(agent_response)
+        # agent_response.update(MD)
 
     def on_click(self, event: events.Click) -> None:
-        if event.widget is not None:
-            markdown_block = event.widget
-            try:
-                if not isinstance(
-                    markdown_block, MarkdownBlock
-                ) or not markdown_block.has_class("level-0"):
-                    markdown_block = event.widget.query_ancestor(
-                        "MarkdownBlock.level-0", MarkdownBlock
-                    )
+        widget = event.widget
+        contents = self.contents
+        if self.screen.get_selected_text():
+            return
+        if widget is None:
+            return
+        if widget in contents.displayed_children:
+            self.cursor_offset = contents.displayed_children.index(widget)
+            self.refresh_block_cursor()
+            return
+        for parent in widget.ancestors:
+            if not isinstance(parent, Widget):
+                break
+            if (
+                parent is self or parent is contents
+            ) and widget in contents.displayed_children:
+                self.cursor_offset = contents.displayed_children.index(widget)
+                self.refresh_block_cursor()
+                break
+            if (
+                isinstance(parent, BlockProtocol)
+                and parent in contents.displayed_children
+            ):
+                self.cursor_offset = contents.displayed_children.index(parent)
+                parent.block_select(widget)
+                self.refresh_block_cursor()
+                break
+            widget = parent
+        # self.call_after_refresh(self.refresh_block_cursor)
+        # event.stop()
 
-            except NoMatches:
-                pass
-            else:
-                with suppress(ValueError):
-                    clicked_block_index = self.blocks.index(markdown_block)
-                    if self.block_cursor == clicked_block_index:
-                        pass
-                        # await self.action_select_block()
-                    else:
-                        self.block_cursor = clicked_block_index
-
-        # self.notify(str(event.widget))
-
-    async def post(self, widget: Widget, anchor: bool = True) -> None:
+    async def post[WidgetType: Widget](
+        self, widget: WidgetType, anchor: bool = True
+    ) -> WidgetType:
         self._blocks = None
         await self.contents.mount(widget)
         if anchor:
             self.window.anchor()
+        return widget
 
-    @property
-    def blocks(self) -> list[MarkdownBlock]:
-        from toad.widgets.agent_response import AgentResponse
+    async def get_ansi_log(self, width: int) -> ANSILog:
+        from toad.widgets.ansi_log import ANSILog
 
-        if self._blocks is None or self.busy_count:
-            self._blocks = [
-                block
-                for response in self.contents.query_children(AgentResponse)
-                for block in response.query_children(MarkdownBlock)
-            ]
-        return self._blocks
+        if self.children and isinstance(self.children[-1], ANSILog):
+            ansi_log = self.children[-1]
+        else:
+            ansi_log = await self.post(ANSILog(minimum_terminal_width=width))
+            await ansi_log.wait_for_refresh()
+        return ansi_log
+
+    async def post_shell(self, command: str) -> None:
+        from toad.widgets.shell_result import ShellResult
+
+        if command.strip():
+            await self.post(ShellResult(command))
+        self.call_after_refresh(
+            self.shell.send,
+            command,
+            self.scrollable_content_region.width - 5,
+            self.window.scrollable_content_region.height - 2,
+        )
 
     def action_cursor_up(self) -> None:
-        blocks = self.blocks
-        if blocks:
-            if self.block_cursor == 0:
-                pass
-            elif self.block_cursor == -1:
-                self.block_cursor = len(blocks) - 1
+        if not self.contents.displayed_children or self.cursor_offset == 0:
+            # No children
+            return
+        if self.cursor_offset == -1:
+            # Start cursor at end
+            self.cursor_offset = len(self.contents.displayed_children) - 1
+            cursor_block = self.cursor_block
+            if isinstance(cursor_block, BlockProtocol):
+                cursor_block.block_cursor_clear()
+                cursor_block.block_cursor_up()
+        else:
+            cursor_block = self.cursor_block
+            if isinstance(cursor_block, BlockProtocol):
+                if cursor_block.block_cursor_up() is None:
+                    self.cursor_offset -= 1
+                    cursor_block = self.cursor_block
+                    if isinstance(cursor_block, BlockProtocol):
+                        cursor_block.block_cursor_clear()
+                        cursor_block.block_cursor_up()
             else:
-                self.block_cursor -= 1
+                # Move cursor up
+                self.cursor_offset -= 1
+                cursor_block = self.cursor_block
+                if isinstance(cursor_block, BlockProtocol):
+                    cursor_block.block_cursor_clear()
+                    cursor_block.block_cursor_up()
+        self.refresh_block_cursor()
 
     def action_cursor_down(self) -> None:
-        blocks = self.blocks
-        if not blocks:
+        if not self.contents.displayed_children or self.cursor_offset == -1:
+            # No children, or no cursor
             return
-        if self.block_cursor == -1:
-            return
-        else:
-            if self.block_cursor < len(blocks) - 1:
-                self.block_cursor += 1
-            else:
-                self.block_cursor = -1
 
-    def action_dismiss(self) -> None:
-        self.block_cursor = -1
+        cursor_block = self.cursor_block
+        if isinstance(cursor_block, BlockProtocol):
+            if cursor_block.block_cursor_down() is None:
+                self.cursor_offset += 1
+                if self.cursor_offset >= len(self.contents.displayed_children):
+                    self.cursor_offset = -1
+                    self.refresh_block_cursor()
+                    return
+                cursor_block = self.cursor_block
+                if isinstance(cursor_block, BlockProtocol):
+                    cursor_block.block_cursor_clear()
+                    cursor_block.block_cursor_down()
+        else:
+            self.cursor_offset += 1
+            if self.cursor_offset >= len(self.contents.displayed_children):
+                self.cursor_offset = -1
+                self.refresh_block_cursor()
+                return
+            cursor_block = self.cursor_block
+            if isinstance(cursor_block, BlockProtocol):
+                cursor_block.block_cursor_clear()
+                cursor_block.block_cursor_down()
+        self.refresh_block_cursor()
+
+    # def action_dismiss(self) -> None:
+    #     self.cursor_offset = -1
 
     def focus_prompt(self) -> None:
-        self.block_cursor = -1
+        self.cursor_offset = -1
+        self.cursor.display = False
+        self.window.scroll_end()
+        self.prompt.focus()
 
     async def action_select_block(self) -> None:
-        block = self.blocks[self.block_cursor]
-        if block.name is None:
+        if (block := self.get_cursor_block(Widget)) is None:
+            return
+
+        menu_options = [
+            MenuItem("Copy to clipboard", "copy_to_clipboard", "c"),
+            MenuItem("Copy to prompt", "copy_to_prompt", "p"),
+        ]
+
+        if isinstance(block, MenuProtocol):
+            menu_options.extend(block.get_block_menu())
+            menu = Menu(block, menu_options)
+
+        elif isinstance(block, MarkdownBlock):
+            if block.name is None:
+                self.app.bell()
+                return
+
+            menu_options.append(
+                MenuItem("Explain this", "explain", "e"),
+            )
+            menu_options.extend(CONVERSATION_MENUS.get(block.name, []))
+
+            from toad.code_analyze import get_special_name_from_code
+
+            if (
+                block.name == "fence"
+                and isinstance(block, MarkdownFence)
+                and block.source
+            ):
+                for numeral, name in enumerate(
+                    get_special_name_from_code(block.source, block.lexer), 1
+                ):
+                    menu_options.append(
+                        MenuItem(
+                            f"Explain '{name}'", f"explain('{name}')", f"{numeral}"
+                        )
+                    )
+
+            menu = Menu(block, menu_options)
+        else:
+            self.notify("This block has no menu", title="Menu", severity="information")
             self.app.bell()
             return
-        menu_options = CONVERSATION_MENUS.get(block.name, []).copy()
 
-        from toad.code_analyze import get_special_name_from_code
-
-        if block.name == "fence" and isinstance(block, MarkdownFence) and block.source:
-            for numeral, name in enumerate(
-                get_special_name_from_code(block.source, block.lexer), 1
-            ):
-                menu_options.append(
-                    Menu.Item(f"explain('{name}')", f"Explain '{name}'", f"{numeral}")
-                )
-
-        menu = Menu(
-            [
-                Menu.Item("explain", "Explain this", "e"),
-                Menu.Item("copy_to_clipboard", "Copy to clipboard", "c"),
-                Menu.Item("copy_to_prompt", "Copy to prompt", "p"),
-                *menu_options,
-            ]
-        )
         menu.offset = Offset(1, block.region.offset.y)
         await self.mount(menu)
         menu.focus()
 
     def action_copy_to_clipboard(self) -> None:
-        if (block := self.cursor_block) is not None and block.source:
-            self.app.copy_to_clipboard(block.source)
+        block = self.get_cursor_block()
+        if isinstance(block, MenuProtocol):
+            text = block.get_block_content("clipboard")
+        elif isinstance(block, MarkdownBlock):
+            text = block.source
+        else:
+            return
+        if text:
+            self.app.copy_to_clipboard(text)
             self.notify("Copied to clipboard")
 
     def action_copy_to_prompt(self) -> None:
-        if (block := self.cursor_block) is not None and block.source:
-            self.block_cursor = -1
-            self.prompt.append(block.source)
+        block = self.get_cursor_block()
+        if isinstance(block, MenuProtocol):
+            text = block.get_block_content("prompt")
+        elif isinstance(block, MarkdownBlock):
+            text = block.source
+        else:
+            return
+
+        if text:
+            self.prompt.append(text)
+            self.focus_prompt()
 
     def action_explain(self, topic: str | None = None) -> None:
-        if (block := self.cursor_block) is not None and block.source:
+        if (block := self.get_cursor_block(MarkdownBlock)) is not None and block.source:
             if topic:
                 PROMPT = f"Explain the purpose of '{topic}' in the following code:\n{block.source}"
             else:
@@ -538,7 +785,7 @@ class Conversation(containers.Vertical):
             self.screen.query_one(Explain).send_prompt(PROMPT)
 
     def action_run(self) -> None:
-        if (block := self.cursor_block) is not None and block.source:
+        if (block := self.get_cursor_block(MarkdownBlock)) is not None and block.source:
             assert isinstance(block, MarkdownFence)
             self.execute(block._content.plain, block.lexer)
 
@@ -551,7 +798,6 @@ class Conversation(containers.Vertical):
 
     @work
     async def execute(self, code: str, language: str) -> None:
-        self.notify(repr(language))
         if language == "python":
             command = "python run"
         elif language == "bash":
@@ -562,27 +808,29 @@ class Conversation(containers.Vertical):
                 title="Run",
                 severity="error",
             )
-        run_output = RunOutput()
-        await self.post(run_output, anchor=True)
+
         with open("run", mode="wt", encoding="utf-8") as source:
             source.write(code)
 
-        process = await asyncio.create_subprocess_shell(
-            command, stdout=asyncio.subprocess.PIPE
-        )
-        while data := await process.stdout.readline():
-            line = data.decode("utf-8")
-            run_output.output += line
+        await self.post_shell(command)
 
-    def watch_block_cursor(self, block_cursor: int) -> None:
-        if block_cursor == -1:
-            self.cursor.follow(None)
-            self.window.anchor()
-            self.prompt.focus()
-        else:
+    def refresh_block_cursor(self) -> None:
+        if (cursor_block := self.cursor_block_child) is not None:
             self.window.focus()
             self.cursor.visible = True
-            blocks = self.blocks
-            block = blocks[block_cursor]
-            self.cursor.follow(block)
-            self.window.scroll_to_center(block)
+            self.cursor.follow(cursor_block)
+            self.call_after_refresh(self.window.scroll_to_center, cursor_block)
+        else:
+            self.cursor.visible = False
+            self.window.anchor(False)
+            self.window.scroll_end(duration=2 / 10)
+            self.cursor.follow(None)
+            self.prompt.focus()
+
+    async def slash_command(self, text: str) -> None:
+        command, _, parameters = text[1:].partition(" ")
+        if command == "about":
+            from toad import about
+            from toad.widgets.markdown_note import MarkdownNote
+
+            await self.post(MarkdownNote(about.render(), classes="about"))

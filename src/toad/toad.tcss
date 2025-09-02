@@ -1,3 +1,6 @@
+LoadingIndicator {
+    background: transparent;
+}
 
 Throbber {
     width: 100%;
@@ -9,7 +12,51 @@ Throbber {
     }   
 } 
 
+.-hidden {
+    display: none;
+}
+
+App.-hide-footer Footer {
+    display: none;
+}
+
+Note,MarkdownNote {
+    padding: 0 1 0 0;
+    &.about MarkdownTable {
+        # Make the tables compact in /about
+        width: auto;
+    }
+}
+
 Conversation {
+    
+ 
+
+    Window {
+        margin: 0;        
+        # scrollbar-gutter: stable;
+        scrollbar-size-vertical: 2;
+        height: 1fr;
+        border: blank;
+        &:focus {
+            border: heavy $secondary ;
+        }
+    }
+
+    &.-scrollbar-thin {
+        Window {
+            scrollbar-gutter: stable;
+            scrollbar-size-vertical: 1;
+        }
+        
+    }
+    &.-scrollbar-hidden {
+        Window {
+            scrollbar-gutter: auto;
+            scrollbar-size-vertical: 0;
+        }
+    }
+
     height: 1fr;    
     background: black 10%;
     layers: base prompt float;        
@@ -19,20 +66,24 @@ Conversation {
     }
     
     .note {
-        padding: 0 1;
+        padding: 0 1 0 0;
     }
 
     Contents {
         layout: stream;
         width: 1fr;
         overflow: hidden; 
-        height: auto;
+        height: auto;        
     }
     
-    Contents > * {          
-        & > MarkdownBlock:last-child {            
+    Contents > * {       
+        &:last-child {            
+            margin: 0 1 0 0;            
+        }   
+        & > MarkdownBlock:last-child {                        
             margin-bottom: 0;     
-        }        
+        }  
+            
     }
 
     ContentsGrid {
@@ -43,35 +94,74 @@ Conversation {
 
     }
 
-    Window {
-        margin-right: 1;
-    }
 
-    #cursor-container {
-            
-        height: 1fr;
+    #cursor-container {            
+        height: auto;
         width: 1;        
         visibility: hidden;
         &> Cursor {
             height: 1;            
             width: 1;
-            border-left: inner $text-accent;
+            border-left: outer $text-accent;
             visibility: visible;
             &.-blink {
-                border-left: inner $text-accent 20%;
+                border-left: outer $text-accent 20%;
             } 
- 
         }
+    }        
+
+    AgentResponse {            
+        padding: 0 1 0 0;       
+        overflow-x: auto;
+        scrollbar-size-horizontal: 0;
+        layout: stream;
     }
-        
-    AgentResponse {
-       padding: 0 2 0 1;       
+
+    ShellResult {        
+        border-left: wide $primary;
+        background: $foreground 4%;        
+        padding: 1 0;   
+        margin: 1 1 1 0; 
+        #prompt {
+            margin: 0 1 0 0;
+            color: $text-primary;
+            
+        }    
+    }
+    
+    ANSILog {        
+        width: 1fr;
+        height: auto;
+        padding: 0 1 0 0;
+        margin: 1 0;
+        overflow: scroll;
+        scrollbar-size: 0 0;             
+
+    }
+
+    UserInput {
+        border-left: wide $secondary;
+        background: $foreground 4%;
+        padding: 1 1 1 0;   
+        margin: 1 1 1 0; 
+        Markdown {
+            padding:0 2 0 0;
+        }
+        Markdown > MarkdownBlock:last-child {
+            margin-bottom: 0;
+        }
+        MarkdownFence {                           
+            margin: 0 2 1 0;
+        }
+        #prompt {
+            margin: 0 1 0 0;
+            color: $text-secondary;
+        }
     }
 
 }
 
 SettingsScreen {
-    
     Markdown {
         layout: stream;
     }
@@ -83,15 +173,16 @@ SettingsScreen {
     #contents {
         width: 50%;
         padding: 0 1;    
-        background: black 10%;                
+        background: black 10%;                    
+        & > VerticalScroll {
+            overflow: auto scroll;
+        }
     }
-
 
     .hidden {
         display: none;
     }
 
-    
     .setting:last-child .input {        
         margin: 1 0 0 0;        
     }
@@ -118,6 +209,7 @@ SettingsScreen {
         dock: top;
         padding: 1 0;
     }
+    
     .setting-group {
         padding: 0;    
         & > .setting-object:last-child {            
@@ -179,51 +271,147 @@ Welcome {
 }
 
 Prompt {
-    dock: bottom;
-    padding: 1 0 0 0;
-    max-height: 50%;
+            
+    padding: 0 0 0 0;
+    # max-height: 50%;
     # background: $background;
-    TextArea {
-        height: auto;
-        max-height: 1fr;
-        &:blur {
-            border: tall black 50%;
-            text-opacity: 0.5;
+    height: auto;
+
+   
+    &.-shell-mode {
+        #prompt-container:focus-within {
+            border: tall $primary;
         }
     }
-    CondensedPath {
-        margin: 1 1;
-        width: 1fr;
-        height: 1;
-        text-wrap: nowrap;
-        color: $text-warning;        
+
+    PathSearch {
+        display: none;
+        height: auto;
+        Input {
+            margin: 0 1;
+            padding: 0 1;
+        }
+        OptionList {
+            border: none;
+            height: 10;           
+            padding: 0;
+            margin: 0 1;                     
+            overflow: hidden;
+            & > .option-list--option {
+                padding: 0 1;            
+            }
+        }
+    }
+
+    &.-show-path-search {
+        PathSearch {
+            display: block
+        }
+    }
+
+    #prompt-container {
+        &:dark {
+            background: black 10%;
+        }
+        &:light {
+            background: white 40%;
+        }
+        height: auto;
+        
+        border: tall transparent;
+        border-subtitle-align: left;
+        border-subtitle-style: reverse;
+        
+        &:focus-within {
+            border: tall $secondary;
+            #prompt {
+                text-opacity: 100%;
+            }
+        }
+        
+        #prompt {
+            padding: 0 1;
+            text-opacity: 30%;
+        }
+        
+        PromptTextArea {
+            padding: 0 1 0 0;
+            background: transparent;
+            border: none;
+            height: auto;
+            max-height: 50vh;
+
+            &:blur {
+                text-opacity: 0.5;
+            }
+        }
+    }
+    
+    #info-container {                
+        height: auto;        
+        CondensedPath {            
+            margin: 1 1;
+            width: 1fr;
+            height: 1;
+            text-wrap: nowrap;
+            color: $text-warning;        
+        }
+    }
+
+
+}
+
+AutoCompleteOptions {    
+    max-height: 100vh;
+    border: none;
+    padding: 0;
+    width: auto;
+    overlay: screen;
+    overflow: hidden;
+    constrain: inside inflect;
+    # layer: screen;
+    # position: absolute;
+    
+    min-width: 12;    
+    margin: 1 0;
+    height: auto;    
+        
+    & > .option-list--option {
+        padding: 0 1;
     }
 }
 
-
-UserInput {
-    border-left: vkey $primary;
-    background: $foreground 4%;
-    padding: 1 2;   
-    margin: 1 0; 
-    & > MarkdownBlock:last-child {
-        margin-bottom: 0;
-    }
-}
-
-AgentResponse {    
-    # margin: 0;
-    # padding: 0;
-    overflow-x: auto;
-    scrollbar-size-horizontal: 0;
-}
 
 MainScreen {
     # hatch: right $foreground 10%;
     
     # align: center top;
     background: $background;
+
+    layers: screen base;
+
+    DirectoryTree {
+        border: tall transparent;
+        &:focus {
+            border: tall $secondary;
+        }
+        display: None;
+   
+        background: transparent;
+        width: auto;
+        max-width: 45%;
+        dock: left;
+        padding: 0 2;
+    }
+    &.-show-tree {
+        DirectoryTree {
+            display: block;
+        }
+    }
+
 }
+
+
 
 Version {
     layer: float;
@@ -255,16 +443,6 @@ Explain {
     width: 100%;    
 }
 
-RunOutput {
-    border-left: vkey $secondary;
-    background: $foreground 4%;
-    padding: 1 2 0 1;   
-    margin: 1 0;    
-    overflow: auto;
-    & > Label {
-        width: auto;
-    }
-}
 
 Footer {
     background: transparent;
@@ -297,5 +475,17 @@ Footer {
         .footer-key--description {
             padding: 0 0 0 1;
         }
+    }
+    FooterLabel {
+        color: $text-muted;
+        background: $footer-description-background;
+    }
+}
+
+HelpPanel {    
+    padding-right: 0;
+    KeyPanel {
+        scrollbar-gutter: stable;
+        
     }
 }

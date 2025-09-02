@@ -1,6 +1,14 @@
-from toad.widgets.menu import Menu
+from typing import NamedTuple
 
 
-CONVERSATION_MENUS: dict[str, list[Menu.Item]] = {
-    "fence": [Menu.Item("run", "Run this code", "r")]
+class MenuItem(NamedTuple):
+    """An entry in a Menu."""
+
+    description: str
+    action: str | None
+    key: str | None = None
+
+
+CONVERSATION_MENUS: dict[str, list[MenuItem]] = {
+    "fence": [MenuItem("Run this code", "run", "r")]
 }
