@@ -83,6 +83,7 @@ class Shell:
         env["TERM"] = "xterm-256color"
         env["COLORTERM"] = "truecolor"
         env["TOAD"] = "1"
+        env["CLICOLOR"] = "1"
         if IS_MACOS:
             shell = f"{self.shell} +o interactive"
         else:
