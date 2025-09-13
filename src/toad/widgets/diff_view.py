@@ -230,7 +230,7 @@ class DiffView(containers.VerticalGroup):
     language: reactive[str | None] = reactive(None)
     split: reactive[bool] = reactive(True, recompose=True)
     annotations: var[bool] = var(False, toggle_class="-with-annotations")
-    auto_split: var[bool] = var(True)
+    auto_split: var[bool] = var(False)
 
     DEFAULT_CSS = """
     DiffView {
