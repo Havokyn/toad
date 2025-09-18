@@ -11,7 +11,7 @@ class AgentBase(ABC):
         super().__init__()
 
     @abstractmethod
-    async def send_prompt(self, prompt: str) -> None: ...
+    async def send_prompt(self, prompt: str) -> str | None: ...
 
     def get_info(self) -> Content:
         return Content("")

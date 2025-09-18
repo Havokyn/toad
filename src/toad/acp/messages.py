@@ -7,8 +7,10 @@ class ACPAgentMessage(Message):
     pass
 
 
+@dataclass
 class ACPThinking(ACPAgentMessage):
-    pass
+    type: str
+    text: str
 
 
 @dataclass

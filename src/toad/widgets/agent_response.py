@@ -3,7 +3,6 @@ from llm import Conversation
 
 from textual.reactive import var
 from textual import work
-from textual.content import Content
 from textual.widget import Widget
 from textual.widgets import Markdown
 from textual.widgets.markdown import MarkdownStream

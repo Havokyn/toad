@@ -43,6 +43,7 @@ from toad.menus import CONVERSATION_MENUS, MenuItem
 if TYPE_CHECKING:
     from toad.widgets.ansi_log import ANSILog
     from toad.widgets.agent_response import AgentResponse
+    from toad.widgets.agent_thought import AgentThought
 
 MD = """\
 # Textual Markdown Browser - Demo
@@ -429,7 +430,8 @@ class Conversation(containers.Vertical):
 
     agent: var[AgentBase | None] = var(None)
     agent_info: var[Content] = var(Content())
-    agent_response: var[AgentResponse | None] = var(None)
+    _agent_response: var[AgentResponse | None] = var(None)
+    _agent_thought: var[AgentThought | None] = var(None)
 
     def compose(self) -> ComposeResult:
         yield Throbber(id="throbber")
@@ -445,6 +447,23 @@ class Conversation(containers.Vertical):
     @cached_property
     def conversation(self) -> llm.Conversation:
         return llm.get_model(self.app.settings.get("llm.model", str)).conversation()
+
+    async def get_agent_response(self) -> AgentResponse:
+        from toad.widgets.agent_response import AgentResponse
+
+        if self._agent_response is None:
+            self._agent_response = AgentResponse(self.conversation, None)
+            await self.post(self._agent_response)
+
+        return self._agent_response
+
+    async def get_agent_thought(self) -> AgentThought:
+        from toad.widgets.agent_thought import AgentThought
+
+        if self._agent_thought is None:
+            self._agent_thought = AgentThought("")
+            await self.post(self._agent_thought, loading=True)
+        return self._agent_thought
 
     @property
     def cursor_block(self) -> Widget | None:
@@ -497,14 +516,13 @@ class Conversation(containers.Vertical):
             if text.startswith("/"):
                 await self.slash_command(text)
             else:
-                from toad.widgets.agent_response import AgentResponse
-
                 await self.post(UserInput(text))
 
-                agent_response = AgentResponse(self.conversation)
-                self.agent_response = agent_response
-                await self.post(agent_response, loading=True)
-
+                # agent_response = AgentResponse(self.conversation)
+                # self.agent_response = agent_response
+                # await self.post(agent_response, loading=True)
+                await self.get_agent_thought()
+                await self.get_agent_response()
                 self.send_prompt_to_agent(text)
 
                 # agent_response.send_prompt(
@@ -515,7 +533,17 @@ class Conversation(containers.Vertical):
     @work
     async def send_prompt_to_agent(self, prompt: str) -> None:
         if self.agent is not None:
-            await self.agent.send_prompt(prompt)
+            stop_reason = await self.agent.send_prompt(prompt)
+            await self.agent_turn_over(stop_reason)
+
+    async def agent_turn_over(self, stop_reason: str | None) -> None:
+        """Called when the agent's turn is over.
+
+        Args:
+            stop_reason: The stop reason returned from the Agent, or `None`.
+        """
+        self._agent_response = None
+        self._agent_thought = None
 
     @on(Menu.OptionSelected)
     async def on_menu_option_selected(self, event: Menu.OptionSelected) -> None:
@@ -560,8 +588,15 @@ class Conversation(containers.Vertical):
 
     @on(acp_messages.ACPUpdate)
     async def on_acp_agent_message(self, message: acp_messages.ACPUpdate):
-        if self.agent_response is not None:
-            await self.agent_response.append_fragment(message.text)
+        message.stop()
+        agent_response = await self.get_agent_response()
+        await agent_response.append_fragment(message.text)
+
+    @on(acp_messages.ACPThinking)
+    async def on_acp_agent_thinking(self, message: acp_messages.ACPThinking):
+        message.stop()
+        agent_thought = await self.get_agent_thought()
+        await agent_thought.append_fragment(message.text)
 
     async def on_mount(self) -> None:
         self.prompt.focus()
@@ -574,10 +609,11 @@ class Conversation(containers.Vertical):
         self.app.settings_changed_signal.subscribe(self, self._settings_changed)
         self.start_shell()
 
-        from toad.acp.agent import Agent
+        if self.app.acp_command is not None:
+            from toad.acp.agent import Agent
 
-        self.agent = Agent(self.project_path, "gemini --experimental-acp")
-        self.agent.start(self)
+            self.agent = Agent(self.project_path, self.app.acp_command)
+            self.agent.start(self)
 
     @work
     async def start_shell(self) -> None:
@@ -610,9 +646,23 @@ class Conversation(containers.Vertical):
         # await self.post(agent_response)
         # agent_response.update(MD)
 
+        # from toad.widgets.question import Ask
+
+        # OPTIONS = [
+        #     ("Yes, allow once", "proceed_always"),
+        #     ("Yes, allow always", "allow_always"),
+        #     ("Modify with external editor", "modify"),
+        #     ("No, suggest changes (esc)", "reject"),
+        # ]
+
+        # self.prompt.ask = Ask(
+        #     "What would you like to do?",
+        #     OPTIONS,
+        # )
+
     def watch_agent(self, agent: AgentBase | None) -> None:
         if agent is None:
-            self.agent_info = Content("")
+            self.agent_info = Content.styled("shell")
         else:
             self.agent_info = agent.get_info()
 

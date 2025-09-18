@@ -26,6 +26,7 @@ from toad import messages
 from toad.widgets.highlighted_textarea import HighlightedTextArea
 from toad.widgets.condensed_path import CondensedPath
 from toad.widgets.path_search import PathSearch
+from toad.widgets.question import Ask, Question
 from toad.messages import UserInputSubmitted
 from toad.slash_command import SlashCommand
 from toad.prompt.extract import extract_paths_from_prompt
@@ -158,14 +159,17 @@ class Prompt(containers.VerticalGroup):
     prompt_label = getters.query_one("#prompt", Label)
     current_directory = getters.query_one(CondensedPath)
     path_search = getters.query_one(PathSearch)
+    question = getters.query_one(Question)
+    auto_complete = getters.query_one(AutoCompleteOptions)
 
     auto_completes: var[list[Option]] = var(list)
     slash_commands: var[list[SlashCommand]] = var(list)
     shell_mode = var(False)
     multi_line = var(False)
     show_path_search = var(False, toggle_class="-show-path-search")
-    project_path = var(Path("~/").expanduser().absolute())
+    project_path = var(lambda: Path("~/").expanduser().absolute())
     agent_info = var(Content(""))
+    ask: var[Ask | None] = var(None)
 
     @dataclass
     class AutoCompleteMove(Message):
@@ -181,10 +185,6 @@ class Prompt(containers.VerticalGroup):
         super().__init__(name=name, id=id, classes=classes, disabled=disabled)
 
     @property
-    def auto_complete(self) -> AutoCompleteOptions:
-        return self.screen.query_one(AutoCompleteOptions)
-
-    @property
     def text(self) -> str:
         return self.prompt_text_area.text
 
@@ -196,6 +196,14 @@ class Prompt(containers.VerticalGroup):
 
     def watch_shell_mode(self) -> None:
         self.update_prompt()
+
+    def watch_ask(self, ask: Ask | None) -> None:
+        self.set_class(ask is not None, "-mode-ask")
+        if ask is None:
+            self.prompt_text_area.focus()
+        else:
+            self.question.update(ask)
+            self.question.focus()
 
     def update_prompt(self):
         """Update the prompt according to the current mode."""
@@ -250,7 +258,10 @@ class Prompt(containers.VerticalGroup):
         return self.shell_mode or self.likely_shell
 
     def focus(self) -> None:
-        self.query(HighlightedTextArea).focus()
+        if self.ask is not None:
+            self.question.focus()
+        else:
+            self.query(HighlightedTextArea).focus()
 
     def append(self, text: str) -> None:
         self.query_one(HighlightedTextArea).insert(text)
@@ -378,6 +389,17 @@ class Prompt(containers.VerticalGroup):
                 path += " "
         self.prompt_text_area.insert(path)
 
+    @on(Question.Answer)
+    def on_question_answer(self, event: Question.Answer) -> None:
+        """Question has been answered."""
+
+        def remove_question() -> None:
+            """Remove the question and restore the text prompt."""
+            self.ask = None
+
+        event.stop()
+        self.set_timer(0.4, remove_question)
+
     def suggest(self, suggestion: str) -> None:
         if suggestion.startswith(self.text) and self.text != suggestion:
             self.prompt_text_area.suggestion = suggestion[len(self.text) :]
@@ -427,10 +449,14 @@ class Prompt(containers.VerticalGroup):
         yield AutoCompleteOptions()
         yield PathSearch().data_bind(root=Prompt.project_path)
         with containers.HorizontalGroup(id="prompt-container"):
-            yield Label(self.PROMPT_AI, id="prompt")
-            yield PromptTextArea().data_bind(
-                Prompt.auto_completes, Prompt.multi_line, Prompt.shell_mode
-            )
+            yield Question()
+            with containers.HorizontalGroup(id="text-prompt"):
+                yield Label(self.PROMPT_AI, id="prompt")
+                yield PromptTextArea().data_bind(
+                    auto_completes=Prompt.auto_completes,
+                    multi_line=Prompt.multi_line,
+                    shell_mode=Prompt.shell_mode,
+                )
         with containers.HorizontalGroup(id="info-container"):
             yield AgentInfo()
             yield CondensedPath()

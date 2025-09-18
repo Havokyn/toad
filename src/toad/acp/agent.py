@@ -3,7 +3,7 @@ import json
 import os
 from pathlib import Path
 
-from logging import getLogger
+import rich.repr
 
 from textual.content import Content
 from textual.message_pump import MessagePump
@@ -21,6 +21,7 @@ from toad.acp.prompt import build as build_prompt
 PROTOCOL_VERSION = 1
 
 
+@rich.repr.auto
 class Agent(AgentBase):
     """An agent that speaks the APC (https://agentclientprotocol.com/overview/introduction) protocol."""
 
@@ -55,6 +56,10 @@ class Agent(AgentBase):
         self.session_id: str = ""
 
         self._message_target: MessagePump | None = None
+
+    def __rich_repr__(self) -> rich.repr.Result:
+        yield self.project_root_path
+        yield self.command
 
     def get_info(self) -> Content:
         return Content(self.command)
@@ -102,7 +107,7 @@ class Agent(AgentBase):
                 "sessionUpdate": "agent_thought_chunk",
                 "content": {"type": type, "text": text},
             }:
-                message_target.post_message(messages.ACPThinking())
+                message_target.post_message(messages.ACPThinking(type, text))
 
     @jsonrpc.expose("read_text_file", prefix="fs/")
     def rpc_read_text_file(
@@ -168,7 +173,6 @@ class Agent(AgentBase):
             agent_output.writelines([line])
             try:
                 agent_data = json.loads(line.decode("utf-8"))
-
                 print("IN", agent_data)
             except Exception:
                 # TODO: handle this
@@ -199,7 +203,7 @@ class Agent(AgentBase):
         # Create a new session
         await self.acp_new_session()
 
-    async def send_prompt(self, prompt: str) -> None:
+    async def send_prompt(self, prompt: str) -> str | None:
         """Send a prompt to the agent.
 
         !!! note
@@ -211,7 +215,7 @@ class Agent(AgentBase):
         prompt_content_blocks = await asyncio.to_thread(
             build_prompt, self.project_root_path, prompt
         )
-        await self.acp_session_prompt(prompt_content_blocks)
+        return await self.acp_session_prompt(prompt_content_blocks)
 
     async def acp_initialize(self):
         """Initialize agent."""

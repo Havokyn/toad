@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from textual.app import ComposeResult
+from textual import events, on
 from textual.binding import Binding
 from textual import containers
 from textual.content import Content
@@ -11,13 +12,29 @@ from textual.message import Message
 from textual.widget import Widget
 from textual.widgets import Label
 
+type Options = list[tuple[str, str]]
 
-type Questions = list[tuple[str, str]]
+
+@dataclass
+class Ask:
+    """Data for Question."""
+
+    question: str
+    options: Options
+
+
+class NonSelectableLabel(Label):
+    ALLOW_SELECT = False
 
 
 class Option(containers.HorizontalGroup):
+    ALLOW_SELECT = False
     DEFAULT_CSS = """
-    Option {        
+    Option {
+
+        &:hover {
+            background: $boost;
+        }
         color: $text-muted;
         #caret {
             visibility: hidden;
@@ -29,8 +46,7 @@ class Option(containers.HorizontalGroup):
         #label {
             width: 1fr;
         }
-        &.-active {
-            background: $boost;
+        &.-active {            
             color: $text-accent;
             #caret {
                 visibility: visible;
@@ -53,6 +69,12 @@ class Option(containers.HorizontalGroup):
     }
     """
 
+    @dataclass
+    class Selected(Message):
+        """The option was selected."""
+
+        index: int
+
     selected: reactive[bool] = reactive(False, toggle_class="-selected")
 
     def __init__(self, index: int, content: Content, classes: str = "") -> None:
@@ -61,22 +83,31 @@ class Option(containers.HorizontalGroup):
         self.content = content
 
     def compose(self) -> ComposeResult:
-        yield Label("❯", id="caret")
-        yield Label(f"{self.index + 1}.", id="index")
-        yield Label(self.content, id="label")
+        yield NonSelectableLabel("❯", id="caret")
+        yield NonSelectableLabel(f"{self.index + 1}.", id="index")
+        yield NonSelectableLabel(self.content, id="label")
+
+    def on_click(self, event: events.Click) -> None:
+        event.stop()
+        self.post_message(self.Selected(self.index))
 
 
 class Question(Widget, can_focus=True):
+    """A text question with a menu of responses."""
+
+    CURSOR_GROUP = Binding.Group("Cursor")
     BINDINGS = [
-        Binding("up", "selection_up", "Up"),
-        Binding("down", "selection_down", "Down"),
+        Binding("up", "selection_up", "Up", group=CURSOR_GROUP),
+        Binding("down", "selection_down", "Down", group=CURSOR_GROUP),
         Binding("enter", "select", "Select"),
     ]
 
     DEFAULT_CSS = """
     Question {
         width: 1fr;
-        padding: 1; 
+        height: auto;
+        padding: 0 1; 
+        background: transparent;
         #prompt {
             margin-bottom: 1;
             color: $text-primary;
@@ -85,21 +116,22 @@ class Question(Widget, can_focus=True):
     """
 
     question: var[str] = var("")
-    options: var[Questions] = var(list)
+    options: var[Options] = var(list)
 
     selection: reactive[int] = reactive(0, init=False)
     selected: var[bool] = var(False, toggle_class="-selected")
 
     @dataclass
-    class Response(Message):
+    class Answer(Message):
         """User selected a response."""
 
         index: int
+        option_id: str
 
     def __init__(
         self,
-        question: str,
-        options: Questions,
+        question: str = "Ask and you will receive",
+        options: Options | None = None,
         name: str | None = None,
         id: str | None = None,
         classes: str | None = None,
@@ -107,7 +139,14 @@ class Question(Widget, can_focus=True):
     ):
         super().__init__(name=name, id=id, classes=classes, disabled=disabled)
         self.set_reactive(Question.question, question)
-        self.set_reactive(Question.options, options)
+        self.set_reactive(Question.options, options or [])
+
+    def update(self, ask: Ask) -> None:
+        self.question = ask.question
+        self.options = ask.options
+        self.selection = 0
+        self.selected = False
+        self.refresh(recompose=True, layout=True)
 
     def compose(self) -> ComposeResult:
         with containers.VerticalGroup():
@@ -139,8 +178,14 @@ class Question(Widget, can_focus=True):
         self.selection = min(len(self.options) - 1, self.selection + 1)
 
     def action_select(self) -> None:
-        self.post_message(self.Response(self.selected))
+        self.post_message(self.Answer(self.selected, self.options[self.selected][1]))
         self.selected = True
+
+    @on(Option.Selected)
+    def on_option_selected(self, event: Option.Selected) -> None:
+        event.stop()
+        if not self.selected:
+            self.selection = event.index
 
 
 if __name__ == "__main__":

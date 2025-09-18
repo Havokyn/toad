@@ -33,6 +33,7 @@ Conversation {
  
 
     Window {
+        layout: vertical;
         margin: 0;        
         # scrollbar-gutter: stable;
         scrollbar-size-vertical: 2;
@@ -105,10 +106,36 @@ Conversation {
         padding: 0 1 0 0;       
         overflow-x: auto;
         scrollbar-size-horizontal: 0;
-        layout: vertical;
+        layout: stream;
         MarkdownBlock:last-child {
             margin-bottom: 0;
         }
+    }
+
+    LoadingIndicator {
+        height: 10;
+    }
+
+    AgentThought {
+        background: $primary-muted 20%;
+        color: $text-primary;        
+        # border-left: wide $primary 50%;
+        # margin-right: 1;        
+        min-height: 1;        
+        margin: 1 1 1 0;              
+        padding: 1 1 1 1;
+        overflow-x: auto;
+        scrollbar-size-horizontal: 0;
+        layout: stream;
+        MarkdownBlock:last-child {
+            margin-bottom: 0;
+        }
+        
+        &.-loading {            
+            background: transparent !important;
+            padding: 0;
+            margin: 0;            
+        }    
     }
 
     ShellResult {        
@@ -132,13 +159,14 @@ Conversation {
         scrollbar-size: 0 0;             
 
     }
+    # border-left: wide $secondary;
 
     UserInput {
         border-left: wide $secondary;
-        background: $foreground 4%;
+        background: $secondary 15%;
         padding: 1 1 1 0;   
         margin: 1 1 1 0; 
-        Markdown {
+        Markdown {            
             padding:0 2 0 0;
         }
         Markdown > MarkdownBlock:last-child {
@@ -300,6 +328,18 @@ Prompt {
     &.-show-path-search {
         PathSearch {
             display: block
+        }
+    }
+
+    Question {
+        display: none;
+    }
+    &.-mode-ask {
+        Question {
+            display: block;            
+        }
+        #text-prompt {
+            display: none;
         }
     }
 

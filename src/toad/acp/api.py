@@ -16,7 +16,7 @@ def initialize(
     ...
 
 
-@API.method(name="new", prefix="session/")
+@API.method(name="session/new")
 def session_new(
     cwd: str, mcpServers: list[protocol.McpServer]
 ) -> protocol.NewSessionResponse:
@@ -24,7 +24,7 @@ def session_new(
     ...
 
 
-@API.method(name="prompt", prefix="session/")
+@API.method(name="session/prompt")
 def session_prompt(
     prompt: list[protocol.ContentBlock], sessionId: str
 ) -> protocol.SessionPromptResponse:

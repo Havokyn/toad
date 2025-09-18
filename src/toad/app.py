@@ -27,8 +27,14 @@ class ToadApp(App):
     column_width: reactive[int] = reactive(100)
     scrollbar: reactive[str] = reactive("normal")
 
-    def __init__(self) -> None:
+    def __init__(self, acp_command: str | None = None) -> None:
+        """_summary_
+
+        Args:
+            acp_command: Command to launch an ACP agent.
+        """
         self.settings_changed_signal = Signal(self, "settings_changed")
+        self.acp_command = acp_command
         super().__init__()
 
     @property
