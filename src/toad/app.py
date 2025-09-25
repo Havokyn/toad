@@ -7,10 +7,12 @@ import platformdirs
 from rich import terminal_theme
 
 from textual.binding import Binding
+from textual.content import Content
 from textual.reactive import var, reactive
 from textual.app import App
 from textual.screen import Screen
 from textual.signal import Signal
+from textual.widget import Widget
 
 from toad.settings import Schema, Settings
 from toad.settings_schema import SCHEMA
@@ -39,6 +41,19 @@ class ToadApp(App):
         self.acp_command = acp_command
         self.project_dir = project_dir
         super().__init__()
+
+    def get_loading_widget(self) -> Widget:
+        from toad.widgets.future_text import FutureText
+
+        TEXT = """I must not fear.
+Fear is the mind-killer.
+Fear is the little-death that brings total obliteration.
+I will face my fear.
+I will permit it to pass over me and through me.
+And when it has gone past, I will turn the inner eye to see its path.
+Where the fear has gone there will be nothing. Only I will remain."""
+
+        return FutureText([Content(line) for line in TEXT.splitlines()])
 
     @property
     def config_path(self) -> Path:
