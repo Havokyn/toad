@@ -618,23 +618,37 @@ class Conversation(containers.Vertical):
         )
 
     @on(acp_messages.ToolCallUpdate)
-    async def on_acp_tool_call_update(self, message: acp_messages.ToolCallUpdate):
-        if message.status in (None, "completed"):
+    @on(acp_messages.ToolCall)
+    async def on_acp_tool_call_update(
+        self, message: acp_messages.ToolCall | acp_messages.ToolCallUpdate
+    ):
+        new_tool_call = isinstance(message, acp_messages.ToolCallUpdate)
+        tool_call = message.tool_call
+
+        if tool_call.get("status", None) in (None, "completed"):
             self._agent_thought = None
             self._agent_response = None
 
-        for content in message.content:
-            match content:
-                case {
-                    "type": content,
-                    "content": {
-                        "type": "text",
-                        "text": text,
-                    },
-                }:
-                    from toad.widgets.tool_call import ToolCall
+        if not new_tool_call:
+            return
 
-                    await self.post(ToolCall(text, markup=False))
+        # content = tool_call.get("content", None) or []
+
+        from toad.widgets.tool_call import ToolCallContent
+
+        self.log("TOOL CALL")
+        self.log(tool_call)
+        await self.post(ToolCallContent(tool_call, id=message.tool_id))
+
+        # for content in content:
+        #     match content:
+        #         case {
+        #             "type": content,
+        #             "content": {"type": "text", "text": text},
+        #         }:
+        #             await self.post(ToolCallContent())
+
+        #             await self.post(ToolCall(text, markup=False, id=message.tool_id))
 
     @work
     async def request_permissions(

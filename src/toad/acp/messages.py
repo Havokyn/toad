@@ -31,6 +31,23 @@ class RequestPermission(AgentMessage):
 
 
 @dataclass
+class ToolCall(AgentMessage):
+    tool_call: protocol.ToolCall
+
+    @property
+    def tool_id(self) -> str:
+        """An id suitable for use as a TCSS ID."""
+        tool_call_id = self.tool_call["toolCallId"]
+        return f"toolcall-{tool_call_id}"
+
+
+@dataclass
 class ToolCallUpdate(AgentMessage):
-    status: str | None
-    content: list[protocol.ToolCallContent]
+    tool_call: protocol.ToolCall
+    update: protocol.ToolCallUpdate
+
+    @property
+    def tool_id(self) -> str:
+        """An id suitable for use as a TCSS ID."""
+        tool_call_id = self.tool_call["toolCallId"]
+        return f"toolcall-{tool_call_id}"

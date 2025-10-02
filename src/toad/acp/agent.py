@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 from pathlib import Path
+from typing import cast
 
 import rich.repr
 
@@ -56,7 +57,7 @@ class Agent(AgentBase):
         self.auth_methods: list[protocol.AuthMethod] = []
         self.session_id: str = ""
 
-        self.tool_calls: dict[str, protocol.ToolCall | protocol.ToolCallUpdate] = {}
+        self.tool_calls: dict[str, protocol.ToolCall] = {}
 
         self._message_target: MessagePump | None = None
 
@@ -96,33 +97,45 @@ class Agent(AgentBase):
 
         https://agentclientprotocol.com/protocol/schema
         """
-        log(update)
-        message_target = self._message_target
-        if message_target is None:
+
+        if (message_target := self._message_target) is None:
             return
+
         match update:
             case {
                 "sessionUpdate": "agent_message_chunk",
                 "content": {"type": type, "text": text},
             }:
                 message_target.post_message(messages.Update(type, text))
+
             case {
                 "sessionUpdate": "agent_thought_chunk",
                 "content": {"type": type, "text": text},
             }:
                 message_target.post_message(messages.Thinking(type, text))
-            case {"sessionUpdate": "tool_call", "toolCallId": tool_call_id}:
-                self.tool_calls[tool_call_id] = update
+
             case {
-                "sessionUpdate": "tool_call_update",
-                "status": status,
-                "content": content,
+                "sessionUpdate": "tool_call",
                 "toolCallId": tool_call_id,
             }:
                 self.tool_calls[tool_call_id] = update
-                message_target.post_message(
-                    messages.ToolCallUpdate(status, content or [])
-                )
+                message_target.post_message(messages.ToolCall(update))
+
+            case {
+                "sessionUpdate": "tool_call_update",
+                "toolCallId": tool_call_id,
+            }:
+                if tool_call_id in self.tool_calls:
+                    current_tool_call = self.tool_calls[tool_call_id]
+                    for key, value in update.items():
+                        if value is not None:
+                            current_tool_call[key] = value
+
+                    message_target.post_message(
+                        messages.ToolCallUpdate(current_tool_call, update)
+                    )
+                else:
+                    log.warning(f"Unknown tool call id in update; {update}")
 
     @jsonrpc.expose("session/request_permission")
     async def rpc_request_permission(
@@ -149,10 +162,22 @@ class Agent(AgentBase):
         kind = toolCall.get("kind", None)
         tool_call_id = toolCall.get("toolCallId", None)
         print(f"{kind=} {tool_call_id=}")
+
+        if tool_call_id not in self.tool_calls:
+            permission_tool_call = toolCall
+            permission_tool_call.pop("sessionUpdate")
+            tool_call = cast(protocol.ToolCall, permission_tool_call)
+            self.tool_calls[tool_call_id] = tool_call
+
         if kind is None and tool_call_id in self.tool_calls:
-            toolCall = self.tool_calls[tool_call_id]
-            print("replaced tool call")
-            log(toolCall)
+            permission_tool_call = self.tool_calls[tool_call_id]
+            self.tool_calls[tool_call_id] = permission_tool_call
+
+            permission_tool_call.pop("sessionUpdate")
+            toolCall = cast(
+                protocol.ToolCallUpdatePermissionRequest,
+                permission_tool_call,
+            )
 
         self._message_target.post_message(
             messages.RequestPermission(options, toolCall, result_future)
@@ -246,7 +271,7 @@ class Agent(AgentBase):
             if not line.strip():
                 continue
 
-            agent_output.write(b"%b\n" % line)
+            agent_output.write(line)
             agent_output.flush()
 
             try:
