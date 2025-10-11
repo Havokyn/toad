@@ -1,3 +1,4 @@
+import re
 from rich.text import Text
 
 from textual import log
@@ -120,12 +121,20 @@ class ToolCall(containers.VerticalGroup):
             content_block: protocol.ContentBlock,
         ) -> ComposeResult:
             match content_block:
+                # TODO: This may need updating
+                # Docs claim this should be "plain" text
+                # However, I have seen simple text, text with ansi escape sequences, and Markdown returned
+                # I think this is a flaw in the spec.
+                # For now I will attempt a heuristic to guess what the content actually contains
+                # https://agentclientprotocol.com/protocol/schema#param-text
                 case {"type": "text", "text": text}:
                     if "\x1b" in text:
-                        text = Text.from_ansi(text)
-                        yield TextContent(Content.from_rich_text(text))
-                    else:
+                        parsed_ansi_text = Text.from_ansi(text)
+                        yield TextContent(Content.from_rich_text(parsed_ansi_text))
+                    elif "```" in text or re.match(r"^#{1,6}\s.*$", text, re.MULTILINE):
                         yield MarkdownContent(text)
+                    else:
+                        yield TextContent(text)
 
         for content in tool_call_content:
             log(content)

@@ -113,10 +113,10 @@ class HighlightedTextArea(TextArea):
                 and "\n" not in text
                 and (match := RE_SLASH_COMMAND.match(self.text)) is not None
             ):
-                command, operand = match.groups()
+                command, _operand = match.groups()
                 content = Content(text)
                 content = content.stylize("$text-success", 0, len(command))
-                content = content.stylize("$text-primary", len(command) + 1)
+                content = content.stylize("$text-primary italic", len(command) + 1)
                 self._highlight_lines = [content]
                 return self._highlight_lines
 
