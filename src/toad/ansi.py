@@ -592,6 +592,7 @@ class ANSIStream:
     @classmethod
     @lru_cache(maxsize=1024)
     def _parse_csi(cls, csi: str) -> ANSISegment | None:
+        print(repr(csi))
         if match := re.match(r"\x1b\[(\d+)?(?:;)?(\d*)?(\w)", csi):
             match match.groups():
                 case [lines, "", "A"]:
@@ -613,23 +614,24 @@ class ANSIStream:
                         absolute_x=int(column or 1) - 1,
                         absolute_y=int(row or 1) - 1,
                     )
-                case ["0" | "", "J"]:
+                case ["0" | "", "", "J"]:
                     return cls.CLEAR_SCREEN_CURSOR_TO_END
-                case ["1", "J"]:
+                case ["1", "", "J"]:
                     return cls.CLEAR_SCREEN_CURSOR_TO_BEGINNING
-                case ["2", "J"]:
+                case ["2", "", "J"]:
                     return cls.CLEAR_SCREEN
-                case ["3", "J"]:
+                case ["3", "", "J"]:
                     return cls.CLEAR_SCREEN_SCROLLBACK
-                case ["0" | "", "K"]:
+                case ["0" | "", "", "K"]:
                     return cls.CLEAR_LINE_CURSOR_TO_END
-                case ["1", "K"]:
+                case ["1", "", "K"]:
                     return cls.CLEAR_LINE_CURSOR_TO_BEGINNING
-                case ["2", "K"]:
+                case ["2", "", "K"]:
                     return cls.CLEAR_LINE
         return None
 
     def on_token(self, token: ANSIToken) -> Iterable[ANSISegment]:
+        # print(token)
         match token:
             case Separator(separator):
                 yield self.ANSI_SEPARATORS[separator]
