@@ -429,13 +429,6 @@ class Prompt(containers.VerticalGroup):
             self.set_auto_completes(None)
             return
 
-        command_length = (
-            max(
-                cell_len(slash_command.command) for slash_command in self.slash_commands
-            )
-            + 1
-        )
-
         from toad.visuals.columns import Columns
 
         columns = Columns("auto", "flex")

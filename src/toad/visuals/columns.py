@@ -159,11 +159,11 @@ class Columns:
                 widths.append(None)
 
         if any(width is None for width in widths):
-            remaining_width = Fraction(render_width - gutter_width)
+            used_width = sum(width for width in widths if width is not None)
+            remaining_width = Fraction(render_width - gutter_width - used_width)
             if remaining_width <= 0:
                 widths = [width or 0 for width in widths]
             else:
-                remaining_width -= sum(width for width in widths if width is not None)
                 remaining_count = sum(1 for width in widths if width is None)
                 cell_width = remaining_width / remaining_count
 
