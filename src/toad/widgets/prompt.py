@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 
 from pathlib import Path
-
-from rich.cells import cell_len
+from typing import Self
 
 from textual import on
 from textual.reactive import var
@@ -21,7 +20,7 @@ from textual.widgets.option_list import Option
 from textual.widgets.text_area import Selection
 from textual import events
 
-
+from toad.app import ToadApp
 from toad import messages
 from toad.widgets.highlighted_textarea import HighlightedTextArea
 from toad.widgets.condensed_path import CondensedPath
@@ -188,6 +187,9 @@ class Prompt(containers.VerticalGroup):
     agent_info = var(Content(""))
     ask: var[Ask | None] = var(None)
     plan: var[list[Plan.Entry]]
+    agent_ready: var[bool] = var(False)
+
+    app = getters.app(ToadApp)
 
     @dataclass
     class AutoCompleteMove(Message):
@@ -205,6 +207,9 @@ class Prompt(containers.VerticalGroup):
     @property
     def text(self) -> str:
         return self.prompt_text_area.text
+
+    def watch_agent_ready(self, ready: bool) -> None:
+        self.set_class(not ready, "-not-ready")
 
     def watch_agent_info(self, agent_info: Content) -> None:
         self.query_one(AgentInfo).update(agent_info)
@@ -254,23 +259,14 @@ class Prompt(containers.VerticalGroup):
         text = self.prompt_text_area.text
         if "\n" in text or " " in text:
             return False
-        if text.split(" ", 1)[0] in (
-            "python",
-            "git",
-            "ls",
-            "cat",
-            "cd",
-            "mv",
-            "cp",
-            "tree",
-            "rm",
-            "echo",
-            "rmdir",
-            "mkdir",
-            "touch",
-            "open",
-            "pwd",
-        ):
+
+        shell_commands = {
+            command.strip()
+            for command in self.app.settings.get(
+                "shell.allow_commands", expect_type=str
+            ).split()
+        }
+        if text.split(" ", 1)[0] in shell_commands:
             return True
         return False
 
@@ -278,11 +274,12 @@ class Prompt(containers.VerticalGroup):
     def is_shell_mode(self) -> bool:
         return self.shell_mode or self.likely_shell
 
-    def focus(self) -> None:
+    def focus(self, scroll_visible: bool = True) -> Self:
         if self.ask is not None:
             self.question.focus()
         else:
             self.query(HighlightedTextArea).focus()
+        return self
 
     def append(self, text: str) -> None:
         self.query_one(HighlightedTextArea).insert(text)

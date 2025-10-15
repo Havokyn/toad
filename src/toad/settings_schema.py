@@ -6,22 +6,22 @@ MODEL_CHOICES = sorted([model.model_id for model in llm.get_models()])
 
 
 SCHEMA: list[SchemaDict] = [
-    {
-        "key": "llm",
-        "title": "LLM Model",
-        "help": "Configure the model used in chat. Note that this is temporary until the project feature is implemented",
-        "type": "object",
-        "fields": [
-            {
-                "key": "model",
-                "type": "choices",
-                "title": "Model name",
-                "help": "The model to use.",
-                "choices": MODEL_CHOICES,
-                "default": "gpt-3.5-turbo",
-            }
-        ],
-    },
+    # {
+    #     "key": "llm",
+    #     "title": "LLM Model",
+    #     "help": "Configure the model used in chat. Note that this is temporary until the project feature is implemented",
+    #     "type": "object",
+    #     "fields": [
+    #         {
+    #             "key": "model",
+    #             "type": "choices",
+    #             "title": "Model name",
+    #             "help": "The model to use.",
+    #             "choices": MODEL_CHOICES,
+    #             "default": "gpt-3.5-turbo",
+    #         }
+    #     ],
+    # },
     {
         "key": "ui",
         "title": "User interface settings",
@@ -105,6 +105,21 @@ SCHEMA: list[SchemaDict] = [
         ],
     },
     {
+        "key": "shell",
+        "title": "Shell settings",
+        "help": "Customize shell interactions.",
+        "type": "object",
+        "fields": [
+            {
+                "key": "allow_commands",
+                "title": "Allow commands",
+                "help": "List of commands (one per line) which should be considered shell commands by default, rather than a part of a prompt.",
+                "type": "text",
+                "default": "python\ngit\nls\ncat\ncd\nmv\ncp\ntree\nrm\necho\nrmdir\nmkdir\ntouch\nopen\npwd",
+            }
+        ],
+    },
+    {
         "key": "diff",
         "title": "Diff view settings",
         "help": "Customize how diffs are displayed.",
@@ -140,42 +155,42 @@ SCHEMA: list[SchemaDict] = [
             },
         ],
     },
-    {
-        "key": "accounts",
-        "title": "User accounts",
-        "help": "Account details here",
-        "type": "object",
-        "fields": [
-            {
-                "key": "anthropic",
-                "type": "object",
-                "title": "Anthropic account",
-                "help": "Instructions how to get an API Key",
-                "fields": [
-                    {
-                        "key": "apikey",
-                        "help": "Your API Key goes here",
-                        "title": "API Key",
-                        "type": "string",
-                        "default": "$ANTHROPIC_API_KEY",
-                    }
-                ],
-            },
-            {
-                "key": "openai",
-                "type": "object",
-                "title": "OpenAI account",
-                "help": "Instructions how to get an OpenAPI API key",
-                "fields": [
-                    {
-                        "key": "apikey",
-                        "help": "Your API key goes here",
-                        "title": "API Key",
-                        "type": "string",
-                        "default": "$OPENAI_API_KEY",
-                    }
-                ],
-            },
-        ],
-    },
+    # {
+    #     "key": "accounts",
+    #     "title": "User accounts",
+    #     "help": "Account details here",
+    #     "type": "object",
+    #     "fields": [
+    #         {
+    #             "key": "anthropic",
+    #             "type": "object",
+    #             "title": "Anthropic account",
+    #             "help": "Instructions how to get an API Key",
+    #             "fields": [
+    #                 {
+    #                     "key": "apikey",
+    #                     "help": "Your API Key goes here",
+    #                     "title": "API Key",
+    #                     "type": "string",
+    #                     "default": "$ANTHROPIC_API_KEY",
+    #                 }
+    #             ],
+    #         },
+    #         {
+    #             "key": "openai",
+    #             "type": "object",
+    #             "title": "OpenAI account",
+    #             "help": "Instructions how to get an OpenAPI API key",
+    #             "fields": [
+    #                 {
+    #                     "key": "apikey",
+    #                     "help": "Your API key goes here",
+    #                     "title": "API Key",
+    #                     "type": "string",
+    #                     "default": "$OPENAI_API_KEY",
+    #                 }
+    #             ],
+    #         },
+    #     ],
+    # },
 ]

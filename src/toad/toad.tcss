@@ -277,6 +277,10 @@ Prompt {
         }
     }
 
+    &.-not-ready {
+        opacity: 0.5;
+    }
+
     PathSearch {
         display: none;
         height: auto;

@@ -6,7 +6,7 @@ from textual import on
 from textual.app import ComposeResult
 from textual import containers
 from textual.screen import ModalScreen
-from textual.widgets import Input, Select, Checkbox, Footer, Static
+from textual.widgets import Input, Select, Checkbox, Footer, Static, TextArea
 from textual.compose import compose
 from textual.validation import Validator, Number
 from textual import getters
@@ -62,13 +62,18 @@ class SettingsScreen(ModalScreen):
                         classes="setting",
                         name=f"{group_title.lower()} {setting.title.lower()}",
                     ):
-                        value = settings.get(setting.key, expand=False)
+                        value = settings.get(setting.key, object, expand=False)
                         yield Static(setting.title, classes="title")
                         if setting.help:
                             yield Static(setting.help, classes="help")
                         if setting.type == "string":
                             with self.prevent(Input.Changed):
                                 yield Input(
+                                    str(value), classes="input", name=setting.key
+                                )
+                        if setting.type == "text":
+                            with self.prevent(TextArea.Changed):
+                                yield TextArea(
                                     str(value), classes="input", name=setting.key
                                 )
                         elif setting.type == "boolean":

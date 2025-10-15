@@ -38,6 +38,10 @@ SettingsScreen {
         border: tall $error 60%;
     }
 
+    TextArea {
+        height: 10;
+    }
+
     .search-container {
         dock: top;
         padding: 1 0;

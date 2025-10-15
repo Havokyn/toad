@@ -1,6 +1,12 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
+
 from textual.content import Content
+from textual.message import Message
+
+
+class AgentReady(Message):
+    """Agent is ready."""
 
 
 class AgentBase(ABC):

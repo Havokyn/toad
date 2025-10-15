@@ -14,7 +14,7 @@ from textual.message_pump import MessagePump
 from textual import log
 
 from toad import jsonrpc
-from toad.agent import AgentBase
+from toad.agent import AgentBase, AgentReady
 from toad.acp import protocol
 from toad.acp import api
 from toad.acp.api import API
@@ -420,6 +420,8 @@ class Agent(AgentBase):
             await self.acp_initialize()
             # Create a new session
             await self.acp_new_session()
+
+            self.post_message(AgentReady())
 
     async def send_prompt(self, prompt: str) -> str | None:
         """Send a prompt to the agent.

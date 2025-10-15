@@ -32,7 +32,7 @@ from toad.acp import messages as acp_messages
 from toad.app import ToadApp
 from toad.acp import protocol as acp_protocol
 from toad.answer import Answer
-from toad.agent import AgentBase
+from toad.agent import AgentBase, AgentReady
 from toad.widgets.menu import Menu
 from toad.widgets.note import Note
 from toad.widgets.prompt import Prompt
@@ -157,6 +157,7 @@ class Conversation(containers.Vertical):
 
     agent: var[AgentBase | None] = var(None)
     agent_info: var[Content] = var(Content())
+    agent_ready: var[bool] = var(False)
     _agent_response: var[AgentResponse | None] = var(None)
     _agent_thought: var[AgentThought | None] = var(None)
 
@@ -175,7 +176,9 @@ class Conversation(containers.Vertical):
                     yield Cursor()
                 yield Contents(id="contents")
         yield Prompt().data_bind(
-            project_path=Conversation.project_path, agent_info=Conversation.agent_info
+            project_path=Conversation.project_path,
+            agent_info=Conversation.agent_info,
+            agent_ready=Conversation.agent_ready,
         )
 
     @cached_property
@@ -245,6 +248,10 @@ class Conversation(containers.Vertical):
         if isinstance(cursor_block, block_type):
             return cursor_block
         return None
+
+    @on(AgentReady)
+    def on_agent_ready(self) -> None:
+        self.agent_ready = True
 
     @on(messages.WorkStarted)
     def on_work_started(self) -> None:
@@ -492,7 +499,6 @@ class Conversation(containers.Vertical):
                 KeyError(f"No terminal with id {message.terminal_id!r}")
             )
         else:
-            print("WAITING for exit")
             return_code, signal = await terminal.wait_for_exit()
             message.result_future.set_result((return_code or 0, signal))
 
@@ -504,8 +510,6 @@ class Conversation(containers.Vertical):
         tool_call_update: acp_protocol.ToolCallUpdatePermissionRequest,
     ) -> None:
         kind = tool_call_update.get("kind")
-
-        log(tool_call_update)
 
         if kind is None:
             from toad.widgets.tool_call import ToolCall
@@ -692,8 +696,10 @@ class Conversation(containers.Vertical):
     def watch_agent(self, agent: AgentBase | None) -> None:
         if agent is None:
             self.agent_info = Content.styled("shell")
+            self.agent_ready = True
         else:
             self.agent_info = agent.get_info()
+            self.agent_ready = False
 
     def on_click(self, event: events.Click) -> None:
         widget = event.widget

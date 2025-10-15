@@ -240,6 +240,41 @@ class PlanEntry(SchemaDict, total=False):
     status: Literal["pending", "in_progress", "completed"]
 
 
+type SessionModeId = str
+
+
+# https://agentclientprotocol.com/protocol/schema#sessionmode
+class SessionMode(SchemaDict, total=False):
+    _meta: dict
+    description: str | None
+    id: Required[SessionModeId]
+    name: Required[str]
+
+
+class SessionModeState(SchemaDict, total=False):
+    _meta: dict
+    availableModes: Required[list[SessionMode]]
+    currentModeId: SessionModeId
+
+
+type ModelId = str
+
+
+# https://agentclientprotocol.com/protocol/schema#modelinfo
+class ModelInfo(SchemaDict, total=False):
+    _meta: dict
+    description: str | None
+    modelId: Required[ModelId]
+    name: Required[str]
+
+
+# https://agentclientprotocol.com/protocol/schema#sessionmodelstate
+class SessionModelState(SchemaDict, total=False):
+    _meta: dict
+    availableModels: Required[list[ModelInfo]]
+    currentModelId: Required[ModelId]
+
+
 # https://agentclientprotocol.com/protocol/schema#param-plan
 class Plan(SchemaDict, total=False):
     entries: Required[list[PlanEntry]]
@@ -318,13 +353,24 @@ class InitializeResponse(SchemaDict, total=False):
     protocolVersion: Required[int]
 
 
+# https://agentclientprotocol.com/protocol/schema#newsessionresponse
 class NewSessionResponse(SchemaDict, total=False):
+    _meta: object
     sessionId: Required[str]
+    # Unstable from here
+    models: SessionModelState | None
+    modes: SessionModeState | None
 
 
 class SessionPromptResponse(SchemaDict, total=False):
     stopReason: Required[
-        Literal["end_turn", "max_tokens", "max_turn_requests", "refusal", "cancelled"]
+        Literal[
+            "end_turn",
+            "max_tokens",
+            "max_turn_requests",
+            "refusal",
+            "cancelled",
+        ]
     ]
 
 

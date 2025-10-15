@@ -39,7 +39,7 @@ class SchemaDict(TypedDict, total=False):
 type SettingsType = dict[str, object]
 
 
-INPUT_TYPES = {"boolean", "integer", "string", "choices"}
+INPUT_TYPES = {"boolean", "integer", "string", "choices", "text"}
 
 
 class SettingsError(Exception):
@@ -107,7 +107,29 @@ class Schema:
             if key not in settings:
                 settings = settings[key] = {}
 
-    @property
+    def get_default(self, key: str) -> object | None:
+        """Get a default for the given key.
+
+        Args:
+            key: Key in dotted notation
+
+        Returns:
+            Default, or `None`.
+        """
+        defaults = self.defaults
+
+        schema_object = defaults
+        for last, sub_key in loop_last(parse_key(key)):
+            if last:
+                return schema_object.get(sub_key, None)
+            else:
+                if isinstance(schema_object, dict):
+                    schema_object = schema_object.get(sub_key, {})
+                else:
+                    return None
+        return None
+
+    @cached_property
     def defaults(self) -> dict[str, object]:
         settings: dict[str, object] = {}
 
@@ -138,6 +160,7 @@ class Schema:
             "integer": int,
             "boolean": bool,
             "choices": str,
+            "text": str,
         }
 
         def get_keys(setting: Setting) -> Iterable[tuple[str, type]]:
@@ -232,15 +255,24 @@ class Settings:
                 self._on_set_callback(key, self.get(key))
 
     def get[ExpectType](
-        self, key: str, expect_type: type[ExpectType] = object, expand: bool = True
+        self,
+        key: str,
+        expect_type: type[ExpectType] = object,
+        *,
+        expand: bool = True,
     ) -> ExpectType:
         from os.path import expandvars
 
         sub_settings = self._settings
+
         for last, sub_key in loop_last(parse_key(key)):
             if last:
                 if (value := sub_settings.get(sub_key)) is None:
-                    return expect_type()
+                    default = self._schema.get_default(key)
+                    if default is None:
+                        default = expect_type()
+                    assert isinstance(default, expect_type)
+                    return default
                 if isinstance(value, str) and expand:
                     value = expandvars(value)
                 if not isinstance(value, expect_type):
