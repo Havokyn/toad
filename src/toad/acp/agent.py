@@ -186,7 +186,7 @@ class Agent(AgentBase):
         toolCall: protocol.ToolCallUpdatePermissionRequest,
         _meta: dict | None = None,
     ) -> protocol.RequestPermissionResponse:
-        """_summary_
+        """Agent requests permission to make a tool call.
 
         Args:
             sessionId: The session ID.
@@ -197,6 +197,7 @@ class Agent(AgentBase):
         Returns:
             The response to the permission request.
         """
+        print("rp_request_permission")
         result_future: asyncio.Future[Answer] = asyncio.Future()
         # kind = toolCall.get("kind", None)
         tool_call_id = toolCall["toolCallId"]
@@ -208,7 +209,9 @@ class Agent(AgentBase):
         else:
             tool_call = deepcopy(self.tool_calls[tool_call_id])
 
+        print("send message")
         message = messages.RequestPermission(options, tool_call, result_future)
+        log(message)
         self.post_message(message)
         await result_future
         ask_result = result_future.result()

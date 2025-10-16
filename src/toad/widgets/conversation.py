@@ -546,16 +546,16 @@ class Conversation(containers.Vertical):
     ) -> None:
         kind = tool_call_update.get("kind")
 
+        title: str | None = None
         if kind is None:
             from toad.widgets.tool_call import ToolCall
 
-            if (contents := tool_call_update.get("content")) is None:
-                return
-            title = tool_call_update.get("title")
-            for content in contents:
-                match content:
-                    case {"type": "text", "content": {"text": text}}:
-                        await self.post(ToolCall(text))
+            if (contents := tool_call_update.get("content")) is not None:
+                title = tool_call_update.get("title")
+                for content in contents:
+                    match content:
+                        case {"type": "text", "content": {"text": text}}:
+                            await self.post(ToolCall(text))
 
             def answer_callback(answer: Answer) -> None:
                 result_future.set_result(answer)
@@ -582,7 +582,7 @@ class Conversation(containers.Vertical):
             permissions_screen = PermissionsScreen(options, populate_callback=populate)
             result = await self.app.push_screen_wait(permissions_screen)
             result_future.set_result(result)
-        elif kind == "execute":
+        else:
             title = tool_call_update.get("title", "") or ""
 
             def answer_callback(answer: Answer) -> None:
