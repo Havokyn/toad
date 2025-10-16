@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from asyncio import Future
+import asyncio
 from functools import cached_property
 from operator import attrgetter
 from typing import TYPE_CHECKING
@@ -50,6 +51,18 @@ if TYPE_CHECKING:
     from toad.widgets.agent_response import AgentResponse
     from toad.widgets.agent_thought import AgentThought
     from toad.widgets.terminal import Terminal
+
+
+class Loading(Static):
+    """Tiny widget to show loading indicator."""
+
+    DEFAULT_CLASSES = "block"
+    DEFAULT_CSS = """
+    Loading {
+        height: auto;
+        
+    }
+    """
 
 
 class Cursor(Static):
@@ -171,10 +184,11 @@ class Conversation(containers.Vertical):
         self.agent_slash_commands: list[SlashCommand] = []
         self.slash_command_hints: dict[str, str] = {}
         self.terminals: dict[str, Terminal] = {}
+        self._loading: Loading | None = None
 
     def compose(self) -> ComposeResult:
-        yield Throbber(id="throbber")
         with Window():
+            yield Throbber(id="throbber")
             with ContentsGrid():
                 with containers.VerticalGroup(id="cursor-container"):
                     yield Cursor()
@@ -301,7 +315,8 @@ class Conversation(containers.Vertical):
                 await self.slash_command(text)
             else:
                 await self.post(UserInput(text))
-                await self.get_agent_thought()
+                self._loading = await self.post(Loading("Please wait..."), loading=True)
+                await asyncio.sleep(0)
                 self.send_prompt_to_agent(text)
 
     @work
@@ -773,6 +788,8 @@ class Conversation(containers.Vertical):
     async def post[WidgetType: Widget](
         self, widget: WidgetType, *, anchor: bool = True, loading: bool = False
     ) -> WidgetType:
+        if self._loading is not None:
+            await self._loading.remove()
         await self.contents.mount(widget)
         widget.loading = loading
         if anchor:

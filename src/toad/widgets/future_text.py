@@ -5,6 +5,7 @@ from time import monotonic
 
 from textual.reactive import var
 from textual.content import Content
+from textual.style import Style
 from textual.widgets import Static
 
 
@@ -17,11 +18,15 @@ class FutureText(Static):
         height: 1;
         text-wrap: nowrap;
         text-align: center;
+        &>.future-text--cursor {
+            color: $primary;
+        }
     }
     """
 
-    BARS: ClassVar[list[str]] = ["▉", "▊", "▋", "▌", "▍", "▎", "▏", " "]
+    COMPONENT_CLASSES = {"future-text--cursor"}
 
+    BARS: ClassVar[list[str]] = ["▉", "▊", "▋", "▌", "▍", "▎", "▏", " "]
     text_offset = var(0)
 
     def __init__(
@@ -29,13 +34,11 @@ class FutureText(Static):
         text_list: list[Content],
         *,
         speed: float = 16.0,
-        cursor_style="$text-error",
         name: str | None = None,
         id: str | None = None,
         classes: str | None = None,
     ):
         self.text_list = text_list
-        self.cursor_style = cursor_style
         self.speed = speed
         self.start_time = monotonic()
         super().__init__(name=name, id=id, classes=classes)
@@ -63,10 +66,14 @@ class FutureText(Static):
 
         bar_character = self.BARS[7 - cursor_progress]
 
+        cursor_style = self.get_component_styles("future-text--cursor")
+        cursor_style = Style(foreground=cursor_style.color)
+        reverse_cursor_style = cursor_style + Style(reverse=True)
+
         text = Content.assemble(
             text,
-            (bar_character, "reverse $text-error"),
-            (bar_character, "$text-error"),
+            (bar_character, reverse_cursor_style),
+            (bar_character, cursor_style),
             " " * (len(self.text) - len(text) + 1),
         )
         self.update(text, layout=False)

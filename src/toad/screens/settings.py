@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from textual import on
 from textual.app import ComposeResult
+from textual import lazy
 from textual import containers
 from textual.screen import ModalScreen
 from textual.widgets import Input, Select, Checkbox, Footer, Static, TextArea
@@ -120,7 +121,7 @@ class SettingsScreen(ModalScreen):
         with containers.Vertical(id="contents"):
             with containers.VerticalGroup(classes="search-container"):
                 yield Input(id="search", placeholder="Search settings")
-            with containers.VerticalScroll(can_focus=False):
+            with lazy.Reveal(containers.VerticalScroll(can_focus=False)):
                 yield from compose(self, schema_to_widget("", schema.settings_map))
 
         yield Footer()
