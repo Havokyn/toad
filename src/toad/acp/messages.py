@@ -124,3 +124,10 @@ class SetModes(AgentMessage):
 
     current_mode: str
     modes: dict[str, Mode]
+
+
+@dataclass
+class ModeUpdate(AgentMessage):
+    """Agent informed us about a mode change."""
+
+    current_mode: str

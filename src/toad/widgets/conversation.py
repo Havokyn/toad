@@ -285,6 +285,12 @@ class Conversation(containers.Vertical):
             elif (new_mode := self.modes.get(event.mode_id)) is not None:
                 self.current_mode = new_mode
 
+    @on(acp_messages.ModeUpdate)
+    def on_mode_update(self, event: acp_messages.ModeUpdate) -> None:
+        if (modes := self.modes) is not None:
+            if (mode := modes.get(event.current_mode)) is not None:
+                self.current_mode = mode
+
     @on(messages.UserInputSubmitted)
     async def on_user_input_submitted(self, event: messages.UserInputSubmitted) -> None:
         if event.shell:

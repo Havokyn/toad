@@ -175,8 +175,8 @@ class Agent(AgentBase):
             }:
                 self.post_message(messages.AvailableCommandsUpdate(available_commands))
 
-            case {"sessionUpdate": "current_mode_update", "modeId": mode_id}:
-                pass
+            case {"sessionUpdate": "current_mode_update", "currentModeId": mode_id}:
+                self.post_message(messages.ModeUpdate(mode_id))
 
     @jsonrpc.expose("session/request_permission")
     async def rpc_request_permission(
@@ -515,8 +515,6 @@ class Agent(AgentBase):
         try:
             await response.wait()
         except jsonrpc.APIError as error:
-            log(error)
-            log(str(error))
             match error.data:
                 case {"details": details}:
                     return details if isinstance(details, str) else "Failed to set mode"
