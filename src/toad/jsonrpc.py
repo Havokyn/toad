@@ -77,10 +77,7 @@ class JSONRPCError(Exception):
     """Default code to use (may be overridden in the constructor)."""
 
     def __init__(
-        self,
-        message: str,
-        id: str | int | None = None,
-        code: ErrorCode | None = None,
+        self, message: str, id: str | int | None = None, code: ErrorCode | None = None
     ) -> None:
         self.message = message
         self.id = id
@@ -109,6 +106,7 @@ class InternalError(JSONRPCError):
     CODE = ErrorCode.INTERNAL_ERROR
 
 
+@rich.repr.auto
 class APIError(Exception):
     def __init__(self, code: int, message: str, data: JSONType) -> None:
         self.code = code
@@ -350,14 +348,15 @@ class MethodCall[ReturnType]:
 
     @property
     def as_json_object(self) -> JSONType:
+        json: JSONType
         if self.id is None:
-            json: JSONType = {
+            json = {
                 "jsonrpc": "2.0",
                 "method": self.method,
                 "params": self.parameters,
             }
         else:
-            json: JSONType = {
+            json = {
                 "jsonrpc": "2.0",
                 "method": self.method,
                 "params": self.parameters,

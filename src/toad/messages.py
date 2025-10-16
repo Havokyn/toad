@@ -36,3 +36,8 @@ class Dismiss(Message):
 @dataclass
 class InsertPath(Message):
     path: str
+
+
+@dataclass
+class ChangeMode(Message):
+    mode_id: str | None

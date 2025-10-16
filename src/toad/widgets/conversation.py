@@ -134,9 +134,10 @@ class Conversation(containers.Vertical):
             "Block cursor down",
             group=CURSOR_BINDING_GROUP,
         ),
-        Binding("enter", "select_block", "Select"),
+        Binding("enter", "select_block", "Select", tooltip="Select this block"),
         Binding("escape", "dismiss", "Dismiss", show=False),
-        Binding("f2,ctrl+comma", "settings", "Settings"),
+        Binding("ctrl+m", "mode_switcher", "Modes", tooltip="Open the mode switcher"),
+        Binding("ctrl+comma,f2", "settings", "Settings", tooltip="Settings screen"),
     ]
 
     busy_count = var(0)
@@ -161,7 +162,7 @@ class Conversation(containers.Vertical):
     agent_ready: var[bool] = var(False)
     _agent_response: var[AgentResponse | None] = var(None)
     _agent_thought: var[AgentThought | None] = var(None)
-    modes: var[dict[str, Mode]] = var({})
+    modes: var[dict[str, Mode]] = var({}, bindings=True)
     current_mode: var[Mode | None] = var(None)
 
     def __init__(self, project_path: Path) -> None:
@@ -183,11 +184,17 @@ class Conversation(containers.Vertical):
             agent_info=Conversation.agent_info,
             agent_ready=Conversation.agent_ready,
             current_mode=Conversation.current_mode,
+            modes=Conversation.modes,
         )
 
     @cached_property
     def conversation(self) -> llm.Conversation:
         return llm.get_model(self.app.settings.get("llm.model", str)).conversation()
+
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        if action == "mode_switcher":
+            return bool(self.modes)
+        return True
 
     async def get_agent_response(self) -> AgentResponse:
         """Get or create an agent response widget."""
@@ -264,6 +271,19 @@ class Conversation(containers.Vertical):
     @on(messages.WorkFinished)
     def on_work_finished(self) -> None:
         self.busy_count -= 1
+
+    @work
+    @on(messages.ChangeMode)
+    async def on_change_mode(self, event: messages.ChangeMode) -> None:
+        if (agent := self.agent) is None:
+            return
+        if event.mode_id is None:
+            self.current_mode = None
+        else:
+            if (error := await agent.set_mode(event.mode_id)) is not None:
+                self.notify(error, title="Set Mode", severity="error")
+            elif (new_mode := self.modes.get(event.mode_id)) is not None:
+                self.current_mode = new_mode
 
     @on(messages.UserInputSubmitted)
     async def on_user_input_submitted(self, event: messages.UserInputSubmitted) -> None:
@@ -983,6 +1003,9 @@ class Conversation(containers.Vertical):
 
         await self.app.push_screen_wait(SettingsScreen())
         self.app.save_settings()
+
+    async def action_mode_switcher(self) -> None:
+        self.prompt.mode_switcher.focus()
 
     @work
     async def execute(self, code: str, language: str) -> None:

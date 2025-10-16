@@ -411,4 +411,9 @@ class WaitForTerminalExitResponse(TypedDict, total=False):
     signal: str | None
 
 
+# https://agentclientprotocol.com/protocol/schema#setsessionmoderesponse
+class SetSessionModeResponse(TypedDict, total=False):
+    meta: dict
+
+
 # ---------------------------------------------------------------------------------------

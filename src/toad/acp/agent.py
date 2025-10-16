@@ -175,6 +175,9 @@ class Agent(AgentBase):
             }:
                 self.post_message(messages.AvailableCommandsUpdate(available_commands))
 
+            case {"sessionUpdate": "current_mode_update", "modeId": mode_id}:
+                pass
+
     @jsonrpc.expose("session/request_permission")
     async def rpc_request_permission(
         self,
@@ -342,6 +345,9 @@ class Agent(AgentBase):
         return_code, signal = result_future.result()
         return {"exitCode": return_code, "signal": signal}
 
+    # @jsonrpc.expose("session/set_mode")
+    # async def rpc_session_set_mode(self, sessionId:str, modeID:str) ->
+
     async def _run_agent(self) -> None:
         """Task to communicate with the agent subprocess."""
 
@@ -499,7 +505,27 @@ class Agent(AgentBase):
         with self.request():
             session_prompt = api.session_prompt(prompt, self.session_id)
         result = await session_prompt.wait()
+        assert result is not None
         return result.get("stopReason")
+
+    async def acp_session_set_mode(self, mode_id: str) -> str | None:
+        """Update the current mode with the agent."""
+        with self.request():
+            response = api.session_set_mode(self.session_id, mode_id)
+        try:
+            await response.wait()
+        except jsonrpc.APIError as error:
+            log(error)
+            log(str(error))
+            match error.data:
+                case {"details": details}:
+                    return details if isinstance(details, str) else "Failed to set mode"
+            return "Failed to set mode"
+        else:
+            return None
+
+    async def set_mode(self, mode_id: str) -> str | None:
+        return await self.acp_session_set_mode(mode_id)
 
 
 if __name__ == "__main__":

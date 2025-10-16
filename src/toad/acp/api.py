@@ -1,3 +1,4 @@
+# mypy: disable-error-code="empty-body"
 """
 ACP remote API
 """
@@ -29,4 +30,10 @@ def session_prompt(
     prompt: list[protocol.ContentBlock], sessionId: str
 ) -> protocol.SessionPromptResponse:
     """https://agentclientprotocol.com/protocol/prompt-turn#1-user-message"""
+    ...
+
+
+@API.method(name="session/set_mode")
+def session_set_mode(sessionId: str, modeId: str) -> protocol.SetSessionModeResponse:
+    """https://agentclientprotocol.com/protocol/session-modes#from-the-client"""
     ...

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Iterable, Iterator, Literal
 from fractions import Fraction
 
 import rich.repr
@@ -88,6 +88,12 @@ class Columns:
         if row_index >= len(self.rows):
             raise IndexError(f"No row with index {row_index}")
         return Row(self, row_index)
+
+    def __len__(self) -> int:
+        return len(self.rows)
+
+    def __iter__(self) -> Iterator[Row]:
+        return iter([self[row_index] for row_index in range(len(self))])
 
     def get_optimal_width(self) -> int:
         """Get optional width (Visual protocol).

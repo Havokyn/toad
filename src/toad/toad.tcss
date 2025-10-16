@@ -412,6 +412,39 @@ AutoCompleteOptions {
     }
 }
 
+ModeInfo:hover {
+    text-style: underline;
+}
+
+ModeSwitcher {
+
+    max-height: 50vh;
+        
+    border: none;
+    padding: 0;
+    width: auto;
+    max-width: 100;
+    
+    overlay: screen;
+    overflow: hidden;
+    constrain: inside inflect;    
+    min-width: 12;    
+    margin: 1 0;
+    height: auto;     
+        
+    & > .option-list--option {
+        padding: 0 1;
+    }
+   
+    &:blur {
+        display: none;
+    }
+
+    &:focus > .option-list--option-highlighted {
+        background: $primary 30%;
+        text-style: not bold;
+    }
+}
 
 MainScreen {    
     background: $background;

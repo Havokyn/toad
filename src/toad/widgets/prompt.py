@@ -40,6 +40,18 @@ class AutoCompleteOptions(OptionList, can_focus=False):
         super().watch_highlighted(highlighted)
 
 
+class ModeSwitcher(OptionList):
+    BINDINGS = [Binding("escape", "dismiss")]
+
+    @on(OptionList.OptionSelected)
+    def on_option_selected(self, event: OptionList.OptionSelected):
+        self.post_message(messages.ChangeMode(event.option_id))
+        self.blur()
+
+    def action_dismiss(self):
+        self.blur()
+
+
 class InvokeFileSearch(Message):
     pass
 
@@ -56,9 +68,28 @@ class PromptTextArea(HighlightedTextArea):
     BINDING_GROUP_TITLE = "Prompt"
 
     BINDINGS = [
-        Binding("enter", "submit", "Send", key_display="⏎", priority=True),
-        Binding("ctrl+j,shift+enter", "newline", "New line", key_display="⇧+⏎"),
-        Binding("ctrl+j,shift+enter", "multiline_submit", "Send", key_display="⇧+⏎"),
+        Binding(
+            "enter",
+            "submit",
+            "Send",
+            key_display="⏎",
+            priority=True,
+            tooltip="Send the prompt to the agent",
+        ),
+        Binding(
+            "ctrl+j,shift+enter",
+            "newline",
+            "Line",
+            key_display="⇧+⏎",
+            tooltip="Insert a new line character",
+        ),
+        Binding(
+            "ctrl+j,shift+enter",
+            "multiline_submit",
+            "Send",
+            key_display="⇧+⏎",
+            tooltip="Send the prompt to the agent",
+        ),
     ]
 
     auto_completes: var[list[Option]] = var(list)
@@ -195,6 +226,7 @@ class Prompt(containers.VerticalGroup):
     path_search = getters.query_one(PathSearch)
     question = getters.query_one(Question)
     auto_complete = getters.query_one(AutoCompleteOptions)
+    mode_switcher = getters.query_one(ModeSwitcher)
 
     auto_completes: var[list[Option]] = var(list)
     slash_commands: var[list[SlashCommand]] = var(list)
@@ -207,6 +239,7 @@ class Prompt(containers.VerticalGroup):
     plan: var[list[Plan.Entry]]
     agent_ready: var[bool] = var(False)
     current_mode: var[Mode | None] = var(None)
+    modes: var[dict[str, Mode] | None] = var(None)
 
     app = getters.app(ToadApp)
 
@@ -230,7 +263,44 @@ class Prompt(containers.VerticalGroup):
     def watch_current_mode(self, mode: Mode | None) -> None:
         self.set_class(mode is not None, "-has-mode")
         if mode is not None:
-            self.query_one(ModeInfo).with_tooltip(mode.description).update(mode.name)
+            # tooltip = f"[b]{mode.description}[/b]\n\n(click to open mode switcher)"
+            tooltip = Content.from_markup(
+                "[b]$description[/]\n\n(click to open mode switcher)",
+                description=mode.description,
+            )
+            self.query_one(ModeInfo).with_tooltip(tooltip).update(mode.name)
+        self.watch_modes(self.modes)
+
+    @on(events.Click, "ModeInfo")
+    def on_click(self):
+        self.mode_switcher.focus()
+
+    def watch_modes(self, modes: dict[str, Mode] | None) -> None:
+        from toad.visuals.columns import Columns
+
+        columns = Columns("auto", "auto", "flex")
+        if modes is not None:
+            mode_list = sorted(modes.values(), key=lambda mode: mode.name.lower())
+            for mode in mode_list:
+                columns.add_row(
+                    (
+                        Content.styled("✔", "$text-success")
+                        if self.current_mode and mode.id == self.current_mode.id
+                        else ""
+                    ),
+                    Content.from_markup("[bold]$mode[/]", mode=mode.name),
+                    Content.styled(mode.description or "", "dim"),
+                )
+        else:
+            mode_list = []
+
+        self.mode_switcher.set_options(
+            [Option(row, id=mode.id) for row, mode in zip(columns, mode_list)]
+        )
+        if self.current_mode is not None:
+            self.mode_switcher.highlighted = self.mode_switcher.get_option_index(
+                self.current_mode.id
+            )
 
     def watch_agent_ready(self, ready: bool) -> None:
         self.set_class(not ready, "-not-ready")
@@ -506,6 +576,7 @@ class Prompt(containers.VerticalGroup):
         with containers.HorizontalGroup(id="info-container"):
             yield AgentInfo()
             yield CondensedPath().data_bind(path=Prompt.project_path)
+            yield ModeSwitcher()
             yield ModeInfo("mode")
 
     def action_dismiss(self) -> None:

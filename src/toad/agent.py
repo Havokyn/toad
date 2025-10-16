@@ -17,7 +17,25 @@ class AgentBase(ABC):
         super().__init__()
 
     @abstractmethod
-    async def send_prompt(self, prompt: str) -> str | None: ...
+    async def send_prompt(self, prompt: str) -> str | None:
+        """Send a prompt to the agent.
+
+        Args:
+            prompt: Prompt text.
+
+        Returns:
+            str: The stop reason.
+        """
+
+    async def set_mode(self, mode_id: str) -> str | None:
+        """Put the agent in a new mode.
+
+        Args:
+            mode_id: Mode id.
+
+        Returns:
+            str: The stop reason.
+        """
 
     def get_info(self) -> Content:
         return Content("")
