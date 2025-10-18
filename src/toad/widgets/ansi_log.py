@@ -392,7 +392,6 @@ class ANSILog(ScrollView, can_focus=False):
             self._render_line_cache[cache_key] = strip
         strip = strip.crop_extend(x, x + width, rich_style)
         strip = strip.apply_offsets(x + offset, line_no)
-
         return strip
 
 

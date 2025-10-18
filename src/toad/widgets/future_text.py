@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from math import ceil
 from typing import ClassVar
 from time import monotonic
 
+from textual.color import Color
 from textual.reactive import var
 from textual.content import Content
 from textual.style import Style
@@ -62,20 +64,33 @@ class FutureText(Static):
         progress, fractional_progress = divmod(speed_time, 1)
         end = progress >= len(text)
         cursor_progress = 0 if end else int(fractional_progress * 8)
-        text = text[: round(progress)]
+        text = text[: ceil(progress)]
 
         bar_character = self.BARS[7 - cursor_progress]
 
-        cursor_style = self.get_component_styles("future-text--cursor")
-        cursor_style = Style(foreground=cursor_style.color)
+        cursor_styles = self.get_component_styles("future-text--cursor")
+        cursor_style = Style(foreground=cursor_styles.color)
         reverse_cursor_style = cursor_style + Style(reverse=True)
 
-        text = Content.assemble(
-            text,
-            (bar_character, reverse_cursor_style),
-            (bar_character, cursor_style),
-            " " * (len(self.text) - len(text) + 1),
+        # Fade in last character
+        fade_style = Style(
+            foreground=Color.blend(
+                cursor_styles.background, cursor_styles.color, ceil(fractional_progress)
+            )
         )
+
+        fade_text = Content.assemble(
+            text[:-1],
+            ((text[-1].plain if text else " "), fade_style),
+        )
+
+        if speed_time >= 1:
+            text = Content.assemble(
+                fade_text,
+                (bar_character, reverse_cursor_style),
+                (bar_character, cursor_style),
+                " " * (len(self.text) + 1 - len(fade_text)),
+            )
         self.update(text, layout=False)
 
         if progress > len(text) + 10 * 5:
