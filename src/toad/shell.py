@@ -11,6 +11,7 @@ import struct
 import termios
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+from time import monotonic
 
 from textual.message import Message
 
@@ -36,7 +37,9 @@ class CurrentWorkingDirectoryChanged(Message):
 
 
 class Shell:
-    def __init__(self, conversation: Conversation) -> None:
+    def __init__(
+        self, conversation: Conversation, max_buffer_duration: float = 1 / 60
+    ) -> None:
         self.conversation = conversation
         self.ansi_log: ANSILog | None = None
         self.new_log: bool = False
@@ -45,6 +48,7 @@ class Shell:
         self._task: asyncio.Task | None = None
         self.width = 80
         self.height = 24
+        self.max_buffer_duration = max_buffer_duration
 
     async def send(self, command: str, width: int, height: int) -> None:
         height = max(height, 1)
@@ -99,7 +103,7 @@ class Shell:
         )
 
         os.close(slave)
-        BUFFER_SIZE = 64 * 1024 * 2
+        BUFFER_SIZE = 64 * 1024
         reader = asyncio.StreamReader(BUFFER_SIZE)
         protocol = asyncio.StreamReaderProtocol(reader)
 
@@ -123,6 +127,16 @@ class Shell:
         try:
             while True:
                 data = await reader.read(BUFFER_SIZE)
+                buffer_time = monotonic() + self.max_buffer_duration
+                try:
+                    while (
+                        len(data) < BUFFER_SIZE and (time := monotonic()) < buffer_time
+                    ):
+                        async with asyncio.timeout(buffer_time - time):
+                            data += await reader.read(BUFFER_SIZE)
+                except asyncio.TimeoutError:
+                    pass
+
                 if line := unicode_decoder.decode(data, final=not data):
                     if self.ansi_log is None:
                         self.ansi_log = await self.conversation.get_ansi_log(

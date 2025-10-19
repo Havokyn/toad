@@ -486,7 +486,7 @@ ANSI_CLEAR: Mapping[int, ClearType] = {
 
 
 @rich.repr.auto
-class ANSISegment(NamedTuple):
+class ANSICursorContent(NamedTuple):
     """Represents a single operation on the ANSI output.
 
     All values may be `None` meaning "not set".
@@ -504,8 +504,6 @@ class ANSISegment(NamedTuple):
     """New content."""
     replace: tuple[int | None, int | None] | None = None
     """Replace range (slice like)."""
-    clear: ClearType | None = None
-    """Type of clear operation."""
 
     def __rich_repr__(self) -> rich.repr.Result:
         yield "delta_x", self.delta_x, None
@@ -514,7 +512,6 @@ class ANSISegment(NamedTuple):
         yield "absolute_y", self.absolute_y, None
         yield "content", self.content, None
         yield "replace", self.replace, None
-        yield "clear", self.clear, None
 
     def get_replace_offsets(
         self, cursor_offset: int, line_length: int
@@ -532,6 +529,14 @@ class ANSISegment(NamedTuple):
         if replace_end < 0:
             replace_end = line_length + replace_end
         return (replace_start, replace_end)
+
+
+@rich.repr.auto
+class ANSIClear(NamedTuple):
+    clear: ClearType
+
+
+type ANSICommand = ANSICursorContent | ANSIClear
 
 
 class ANSIStream:
@@ -581,29 +586,31 @@ class ANSIStream:
 
         return style
 
-    def feed(self, text: str) -> Iterable[ANSISegment]:
+    def feed(self, text: str) -> Iterable[ANSICursorContent]:
         for token in self.parser.feed(text):
             if isinstance(token, ANSIToken):
                 yield from self.on_token(token)
 
     ANSI_SEPARATORS = {
-        "\n": ANSISegment(delta_y=+1, absolute_x=0),
-        "\r": ANSISegment(absolute_x=0),
-        "\x08": ANSISegment(delta_x=-1),
+        "\n": ANSICursorContent(delta_y=+1, absolute_x=0),
+        "\r": ANSICursorContent(absolute_x=0),
+        "\x08": ANSICursorContent(delta_x=-1),
     }
-    CLEAR_LINE_CURSOR_TO_END = ANSISegment(replace=(None, -1), content=EMPTY_CONTENT)
-    CLEAR_LINE_CURSOR_TO_BEGINNING = ANSISegment(
+    CLEAR_LINE_CURSOR_TO_END = ANSICursorContent(
+        replace=(None, -1), content=EMPTY_CONTENT
+    )
+    CLEAR_LINE_CURSOR_TO_BEGINNING = ANSICursorContent(
         replace=(0, None), content=EMPTY_CONTENT
     )
-    CLEAR_LINE = ANSISegment(replace=(0, -1), content=EMPTY_CONTENT, absolute_x=0)
-    CLEAR_SCREEN_CURSOR_TO_END = ANSISegment(clear="cursor_to_end")
-    CLEAR_SCREEN_CURSOR_TO_BEGINNING = ANSISegment(clear="cursor_to_beginning")
-    CLEAR_SCREEN = ANSISegment(clear="screen")
-    CLEAR_SCREEN_SCROLLBACK = ANSISegment(clear="scrollback")
+    CLEAR_LINE = ANSICursorContent(replace=(0, -1), content=EMPTY_CONTENT, absolute_x=0)
+    CLEAR_SCREEN_CURSOR_TO_END = ANSIClear("cursor_to_end")
+    CLEAR_SCREEN_CURSOR_TO_BEGINNING = ANSIClear("cursor_to_beginning")
+    CLEAR_SCREEN = ANSIClear("screen")
+    CLEAR_SCREEN_SCROLLBACK = ANSIClear("scrollback")
 
     @classmethod
     @lru_cache(maxsize=1024)
-    def _parse_csi(cls, csi: str) -> ANSISegment | None:
+    def _parse_csi(cls, csi: str) -> ANSICommand | None:
         """Parse CSI sequence in to an ansi segment.
 
         Args:
@@ -615,21 +622,21 @@ class ANSIStream:
         if match := re.fullmatch(r"\x1b\[(\d+)?(?:;)?(\d*)?(\w)", csi):
             match match.groups(default=""):
                 case [lines, "", "A"]:
-                    return ANSISegment(delta_y=-int(lines or 1))
+                    return ANSICursorContent(delta_y=-int(lines or 1))
                 case [lines, "", "B"]:
-                    return ANSISegment(delta_y=+int(lines or 1))
+                    return ANSICursorContent(delta_y=+int(lines or 1))
                 case [cells, "", "C"]:
-                    return ANSISegment(delta_x=+int(cells or 1))
+                    return ANSICursorContent(delta_x=+int(cells or 1))
                 case [cells, "", "D"]:
-                    return ANSISegment(delta_x=-int(cells or 1))
+                    return ANSICursorContent(delta_x=-int(cells or 1))
                 case [lines, "", "E"]:
-                    return ANSISegment(absolute_x=0, delta_y=+int(lines or 1))
+                    return ANSICursorContent(absolute_x=0, delta_y=+int(lines or 1))
                 case [lines, "", "F"]:
-                    return ANSISegment(absolute_x=0, delta_y=-int(lines or 1))
+                    return ANSICursorContent(absolute_x=0, delta_y=-int(lines or 1))
                 case [cells, "", "G"]:
-                    return ANSISegment(absolute_x=+int(cells or 1))
+                    return ANSICursorContent(absolute_x=+int(cells or 1))
                 case [row, column, "H"]:
-                    return ANSISegment(
+                    return ANSICursorContent(
                         absolute_x=int(column or 1) - 1, absolute_y=int(row or 1) - 1
                     )
                 case ["0" | "", "", "J"]:
@@ -646,9 +653,11 @@ class ANSIStream:
                     return cls.CLEAR_LINE_CURSOR_TO_BEGINNING
                 case ["2", "", "K"]:
                     return cls.CLEAR_LINE
+                case _:
+                    print("!!", repr(csi), repr(match.groups()))
         return None
 
-    def on_token(self, token: ANSIToken) -> Iterable[ANSISegment]:
+    def on_token(self, token: ANSIToken) -> Iterable[ANSICursorContent]:
         match token:
             case Separator(separator):
                 yield self.ANSI_SEPARATORS[separator]
@@ -675,7 +684,7 @@ class ANSIStream:
                     content = Content.styled(text, style)
                 else:
                     content = Content(text)
-                yield ANSISegment(delta_x=len(content), content=content)
+                yield ANSICursorContent(delta_x=len(content), content=content)
 
 
 if __name__ == "__main__":
