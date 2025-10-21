@@ -7,7 +7,7 @@ from textual.app import ComposeResult
 from textual import lazy
 from textual import containers
 from textual.content import Content
-from textual.screen import ModalScreen
+from textual.screen import ModalScreen, ScreenResultType
 from textual.widgets import Input, Select, Checkbox, Footer, Static, TextArea
 from textual.compose import compose
 from textual.validation import Validator, Number
@@ -88,10 +88,10 @@ class SettingsScreen(ModalScreen):
                                     str(value), classes="input", name=setting.key
                                 )
                         if setting.type == "text":
-                            with self.prevent(TextArea.Changed):
-                                yield TextArea(
-                                    str(value), classes="input", name=setting.key
-                                )
+                            # with self.prevent(TextArea.Changed):
+                            yield TextArea(
+                                str(value), classes="input", name=setting.key
+                            )
                         elif setting.type == "boolean":
                             with self.prevent(Checkbox.Changed):
                                 yield Checkbox(
@@ -161,7 +161,7 @@ class SettingsScreen(ModalScreen):
                 yield from compose(self, schema_to_widget("", schema.settings_map))
 
         yield Footer()
-    
+
     @on(Input.Blurred, "Input")
     @on(Input.Submitted, "Input")
     def on_input_blurred(self, event: Input.Blurred) -> None:
@@ -182,6 +182,11 @@ class SettingsScreen(ModalScreen):
                 self.app.settings.set(event.input.name, float(event.value or "0"))
             else:
                 self.app.settings.set(event.input.name, event.value)
+
+    @on(TextArea.Changed)
+    def on_text_area_changed(self, event: TextArea.Changed) -> None:
+        if event.text_area.name is not None:
+            self.app.settings.set(event.text_area.name, event.text_area.text)
 
     @on(Checkbox.Changed)
     def on_checkbox_changed(self, event: Checkbox.Changed) -> None:
@@ -218,7 +223,6 @@ class SettingsScreen(ModalScreen):
             return None if self.search_input.has_focus else True
         return True
 
-    def action_dismiss(self, result: Any | None = None) -> None:
-        self.query("*:focus").blur()
-        self.call_after_refresh(self.dismiss)
-        
+    async def action_dismiss(self, result: ScreenResultType | None = None) -> None:
+        self.query("#search").focus()
+        self.call_after_refresh(self.dismiss, result)

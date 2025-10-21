@@ -303,18 +303,28 @@ class Settings:
         assert False, "Can't get here"
 
     def set(self, key: str, value: object) -> None:
+        """Set a setting value.
+
+        Args:
+            key: Key in dot notation.
+            value: New value.
+        """
         setting = self._settings
         for last, sub_key in loop_last(parse_key(key)):
             if last:
                 if setting.get(sub_key) != value:
-                    setting[sub_key] = value
                     self._changed = True
+                assert isinstance(setting, dict)
+                setting[sub_key] = value
             else:
                 setting_node = setting.setdefault(sub_key, {})
                 if isinstance(setting_node, dict):
                     setting = setting_node
                 else:
-                    setting = setting[sub_key] = {}
+                    assert isinstance(setting, dict)
+                    setting[sub_key] = {}
+                    setting = setting[sub_key]
+                    self._changed = True
 
         if self._on_set_callback is not None:
             self._on_set_callback(key, value)
