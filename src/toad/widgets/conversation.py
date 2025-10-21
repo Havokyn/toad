@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from asyncio import Future
 import asyncio
-from functools import cached_property
 from operator import attrgetter
+import platform
 from typing import TYPE_CHECKING, Literal
 from pathlib import Path
 from time import monotonic
@@ -20,14 +20,12 @@ from textual.content import Content
 from textual.css.query import NoMatches
 from textual.widget import Widget
 from textual.widgets import Static
-from textual.widgets.markdown import MarkdownBlock, MarkdownFence
+from textual.widgets.markdown import MarkdownBlock
 from textual.geometry import Offset, Spacing
 from textual.reactive import var
 from textual.layouts.grid import GridLayout
 from textual.layout import WidgetPlacement
 
-
-import llm
 
 from toad import jsonrpc, messages
 from toad.acp import messages as acp_messages
@@ -46,7 +44,7 @@ from toad.widgets.explain import Explain
 from toad.shell import Shell, CurrentWorkingDirectoryChanged, ShellFinished
 from toad.slash_command import SlashCommand
 from toad.protocol import BlockProtocol, MenuProtocol
-from toad.menus import CONVERSATION_MENUS, MenuItem
+from toad.menus import MenuItem
 
 if TYPE_CHECKING:
     from toad.widgets.ansi_log import ANSILog
@@ -875,9 +873,15 @@ class Conversation(containers.Vertical):
 
     @property
     def shell(self) -> Shell:
+        system = platform.system()
+        if system == "Darwin":
+            shell_command_key = "shell.macos"
+        else:
+            shell_command_key = "shell.linux"
+        shell_command = self.app.settings.get(shell_command_key, str, expand=False)
         if self._shell is None or self._shell.is_finished:
             shell_directory = self.working_directory
-            self._shell = Shell(self, shell_directory)
+            self._shell = Shell(self, shell_directory, shell=shell_command)
             self._shell.start()
         return self._shell
 

@@ -49,6 +49,7 @@ class Shell:
         conversation: Conversation,
         working_directory: str,
         max_buffer_duration: float = 1 / 60,
+        shell="",
     ) -> None:
         self.conversation = conversation
         self.working_directory = working_directory
@@ -56,7 +57,7 @@ class Shell:
 
         self.ansi_log: ANSILog | None = None
         self.new_log: bool = False
-        self.shell = os.environ.get("SHELL", "sh")
+        self.shell = shell or os.environ.get("SHELL", "sh")
         self.master = 0
         self._task: asyncio.Task | None = None
         self.width = 80
@@ -119,10 +120,12 @@ class Shell:
         env["COLORTERM"] = "truecolor"
         env["TOAD"] = "1"
         env["CLICOLOR"] = "1"
-        if IS_MACOS:
-            shell = f"{self.shell} +o interactive"
-        else:
-            shell = self.shell
+        # if IS_MACOS:
+        #     shell = f"{self.shell} +o interactive"
+        # else:
+        #     shell = f"{self.shell}"
+        shell = self.shell
+        print("SHELL", shell)
 
         _process = await asyncio.create_subprocess_shell(
             shell,
@@ -151,8 +154,8 @@ class Shell:
             os.fdopen(os.dup(master), "wb", 0),
         )
         self.writer = write_transport
-        if not IS_MACOS:
-            self.writer.write(b'set +x\nPS1="";\n')
+        # if not IS_MACOS:
+        #     self.writer.write(b'set +x\nPS1="";\n')
 
         unicode_decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
 

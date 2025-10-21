@@ -119,12 +119,26 @@ SCHEMA: list[SchemaDict] = [
         "type": "object",
         "fields": [
             {
+                "key": "macos",
+                "title": "Shell command (macOS)",
+                "type": "string",
+                "help": "The command used to launch your shell on macOS.\n⚠️You may have to restart toad for this change to take effect.",
+                "default": 'PS1="" ${SHELL:-/bin/sh} +o interactive',
+            },
+            {
+                "key": "linux",
+                "title": "Shell command (Linux)",
+                "type": "string",
+                "help": "The command used to launch your shell on Linux.\n⚠️You may have to restart toad for this change to take effect.",
+                "default": 'PS1="" ${SHELL:-/bin/sh}',
+            },
+            {
                 "key": "allow_commands",
                 "title": "Allow commands",
                 "help": "List of commands (one per line) which should be considered shell commands by default, rather than a part of a prompt.",
                 "type": "text",
                 "default": "python\ngit\nls\ncat\ncd\nmv\ncp\ntree\nrm\necho\nrmdir\nmkdir\ntouch\nopen\npwd",
-            }
+            },
         ],
     },
     {
