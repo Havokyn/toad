@@ -959,15 +959,14 @@ class Conversation(containers.Vertical):
                 cursor_block.block_cursor_down()
         self.refresh_block_cursor()
 
-    # def action_dismiss(self) -> None:
-    #     self.cursor_offset = -1\
-
     @work
     async def action_cancel(self) -> None:
         if monotonic() - self._last_escape_time < 3:
             if (agent := self.agent) is not None:
-                await agent.cancel()
-                self.flash("Turn cancelled", style="success")
+                if await agent.cancel():
+                    self.flash("Turn cancelled", style="success")
+                else:
+                    self.flash("Agent declined to cancel. Please wait.", style="error")
         else:
             self.flash("Press [b]esc[/] again to cancel agent's turn")
             self._last_escape_time = monotonic()

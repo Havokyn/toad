@@ -525,7 +525,7 @@ class Agent(AgentBase):
     async def set_mode(self, mode_id: str) -> str | None:
         return await self.acp_session_set_mode(mode_id)
 
-    async def acp_session_cancel(self) -> None:
+    async def acp_session_cancel(self) -> bool:
         with self.request():
             response = api.session_cancel(self.session_id, {})
         try:
@@ -533,10 +533,11 @@ class Agent(AgentBase):
         except jsonrpc.APIError as error:
             log(error)
             # No-op if there is nothing to cancel
-            return
+            return False
+        return True
 
-    async def cancel(self) -> None:
-        await self.acp_session_cancel()
+    async def cancel(self) -> bool:
+        return await self.acp_session_cancel()
 
 
 if __name__ == "__main__":

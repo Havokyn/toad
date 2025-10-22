@@ -37,8 +37,13 @@ class AgentBase(ABC):
             str: The stop reason.
         """
 
-    async def cancel(self) -> None:
-        """Cancel prompt."""
+    async def cancel(self) -> bool:
+        """Cancel prompt.
+
+        Returns:
+            bool: `True` if success, `False` if the turn wasn't cancelled.
+
+        """
 
     def get_info(self) -> Content:
         return Content("")
