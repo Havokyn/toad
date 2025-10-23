@@ -10,6 +10,26 @@ Please use the Discussions tab for your feedback.
 Avoid issues and PRs for now, unless we've agreed on them in the Discussions tab.
 I am working quite fast, and chances are I am aware of most of the issues.
 
+<table>
+
+  <tbody>
+
+  <tr>
+    <td><img width="1338" height="1004" alt="Screenshot 2025-10-23 at 08 58 58" src="https://github.com/user-attachments/assets/98387559-2e10-485a-8a7d-82cb00ed7622" /></td> 
+    <td><img width="1338" height="1004" alt="Screenshot 2025-10-23 at 08 59 04" src="https://github.com/user-attachments/assets/d4231320-b678-47ba-99ce-02746ca2622b" /></td>    
+  </tr>
+
+  <tr>
+    <td><img width="1338" height="1004" alt="Screenshot 2025-10-23 at 08 59 22" src="https://github.com/user-attachments/assets/ddba550d-ff33-45ad-9f93-281187f5c974" /></td>
+    <td><img width="1338" height="1004" alt="Screenshot 2025-10-23 at 08 59 37" src="https://github.com/user-attachments/assets/e7943272-39a5-40a1-bedf-e440002e1290" /></td>
+  </tr>
+    
+  </tbody>
+
+  
+</table>
+
+
 
 ## What is Toad?
 
@@ -58,7 +78,7 @@ Agents need to be installed separately, and require support for [ACP](https://ag
 Gemini has ACP support out of the box:
 
 ```
-toad acp "gemini --experimental-acp"
+uv run toad acp "gemini --experimental-acp"
 ```
 
 ### Claude
@@ -66,7 +86,7 @@ toad acp "gemini --experimental-acp"
 Claude requires installation of [claude-code-acp](https://github.com/zed-industries/claude-code-acp) plus claude cli itself. Once installed, run:
 
 ```
-toad acp "claude-code-acp"
+uv run toad acp "claude-code-acp"
 ```
 
 ### Codex
@@ -74,7 +94,7 @@ toad acp "claude-code-acp"
 Codex requires [codex-acp](https://github.com/zed-industries/codex-acp). Once installed, run:
 
 ```
-toad acp "codex-acp"
+uv run toad acp "codex-acp"
 ```
 
 
@@ -83,4 +103,5 @@ toad acp "codex-acp"
 Thanks for being a part of this!
 
 See you in discussions.
+
 I'm also in the #toad channel on the [Textualize discord server](https://discord.gg/Enf6Z3qhVr).
