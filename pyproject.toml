@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "textual[syntax]>=6.4.0",
-    "textual-speedups>=0.2.0",
+    #"textual-speedups>=0.2.0",
     "click>=8.2.1",
     "gitpython>=3.1.44",
     "llm>=0.26",
