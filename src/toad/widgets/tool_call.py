@@ -5,6 +5,7 @@ from rich.text import Text
 from textual import on
 from textual import events
 from textual.app import ComposeResult
+from textual import getters
 
 from textual.content import Content
 from textual.reactive import var
@@ -83,6 +84,7 @@ class ToolCall(containers.VerticalGroup):
 
     """
 
+    app = getters.app(ToadApp)
     has_content: var[bool] = var(False)
     expanded: var[bool] = var(False, toggle_class="-expanded")
 
@@ -138,11 +140,32 @@ class ToolCall(containers.VerticalGroup):
         self.has_content = bool(content)
         title = tool_call.get("title", "title")
 
-        yield ToolCallHeader(self.tool_call_header_content, markup=False).with_tooltip(
-            title
-        )
+        yield (header := ToolCallHeader(self.tool_call_header_content, markup=False))
+        header.tooltip = title
         with containers.VerticalGroup(id="tool-content"):
             yield from self._compose_content(content)
+
+        self.call_after_refresh(self.check_expand)
+
+    def check_expand(self) -> None:
+        """Check if the tool call should auto-expand."""
+        if not self.has_content:
+            return
+        tool_call = self._tool_call
+        if tool_call.get("kind", "") == "read":
+            # Don't auto expand reads, as it can generate a lot of noise
+            return
+        tool_call_expand = self.app.settings.get("tools.expand", str, expand=False)
+        status = self._tool_call.get("status")
+        if tool_call_expand == "always":
+            self.expanded = True
+        elif tool_call_expand != "never" and status is not None:
+            if tool_call_expand == "success":
+                self.expanded = status == "completed"
+            elif tool_call_expand == "fail":
+                self.expanded = status == "failed"
+            elif tool_call_expand == "both":
+                self.expanded = status in ("completed", "failed")
 
     @property
     def tool_call_header_content(self) -> Content:

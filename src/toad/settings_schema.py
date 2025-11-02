@@ -6,22 +6,6 @@ MODEL_CHOICES = sorted([model.model_id for model in llm.get_models()])
 
 
 SCHEMA: list[SchemaDict] = [
-    # {
-    #     "key": "llm",
-    #     "title": "LLM Model",
-    #     "help": "Configure the model used in chat. Note that this is temporary until the project feature is implemented",
-    #     "type": "object",
-    #     "fields": [
-    #         {
-    #             "key": "model",
-    #             "type": "choices",
-    #             "title": "Model name",
-    #             "help": "The model to use.",
-    #             "choices": MODEL_CHOICES,
-    #             "default": "gpt-3.5-turbo",
-    #         }
-    #     ],
-    # },
     {
         "key": "ui",
         "title": "User interface settings",
@@ -123,6 +107,28 @@ SCHEMA: list[SchemaDict] = [
                 "title": "Agent thoughts",
                 "help": "Show agent's 'thoughts' in the conversation?",
                 "type": "boolean",
+            },
+        ],
+    },
+    {
+        "key": "tools",
+        "title": "Tool call settings",
+        "help": "Customize how Toad displays agent tool calls",
+        "type": "object",
+        "fields": [
+            {
+                "key": "expand",
+                "title": "Tool call expand",
+                "help": "When should Toad expand tool calls?",
+                "type": "choices",
+                "default": "both",
+                "choices": [
+                    ("Never", "never"),
+                    ("Always", "always"),
+                    ("Success only", "success"),
+                    ("Fail only", "fail"),
+                    ("Fail and success", "both"),
+                ],
             }
         ],
     },
@@ -235,42 +241,4 @@ SCHEMA: list[SchemaDict] = [
             },
         ],
     },
-    # {
-    #     "key": "accounts",
-    #     "title": "User accounts",
-    #     "help": "Account details here",
-    #     "type": "object",
-    #     "fields": [
-    #         {
-    #             "key": "anthropic",
-    #             "type": "object",
-    #             "title": "Anthropic account",
-    #             "help": "Instructions how to get an API Key",
-    #             "fields": [
-    #                 {
-    #                     "key": "apikey",
-    #                     "help": "Your API Key goes here",
-    #                     "title": "API Key",
-    #                     "type": "string",
-    #                     "default": "$ANTHROPIC_API_KEY",
-    #                 }
-    #             ],
-    #         },
-    #         {
-    #             "key": "openai",
-    #             "type": "object",
-    #             "title": "OpenAI account",
-    #             "help": "Instructions how to get an OpenAPI API key",
-    #             "fields": [
-    #                 {
-    #                     "key": "apikey",
-    #                     "help": "Your API key goes here",
-    #                     "title": "API Key",
-    #                     "type": "string",
-    #                     "default": "$OPENAI_API_KEY",
-    #                 }
-    #             ],
-    #         },
-    #     ],
-    # },
 ]

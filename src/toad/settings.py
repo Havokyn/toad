@@ -31,7 +31,7 @@ class SchemaDict(TypedDict, total=False):
     title: Required[str]
     type: Required[str]
     help: str
-    choices: list[str] | None
+    choices: list[str] | list[tuple[str, str]] | None
     default: object
     fields: list[SchemaDict]
     validate: list[dict]

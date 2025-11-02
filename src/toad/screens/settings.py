@@ -143,15 +143,24 @@ class SettingsScreen(ModalScreen):
                             select_value = str(value)
                             choices = setting.choices or []
                             with self.prevent(Select.Changed):
-                                yield Select.from_values(
-                                    choices,
+                                select_choices = [
+                                    choice
+                                    if isinstance(choice, tuple)
+                                    else (choice, choice)
+                                    for choice in choices
+                                ]
+                                choices_set = {choice[1] for choice in select_choices}
+
+                                yield Select(
+                                    select_choices,
                                     value=(
                                         select_value
-                                        if select_value in choices
+                                        if select_value in choices_set
                                         else setting.default
                                     ),
                                     classes="input",
                                     name=setting.key,
+                                    allow_blank=setting.default is None,
                                 )
 
         with containers.Vertical(id="contents"):
