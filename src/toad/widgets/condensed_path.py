@@ -45,13 +45,20 @@ def condense_path(path: str, width: int, *, prefix: str = "") -> str:
         return path
     components = path.split("/")
     condensed = components
-    for left, right in radiate_range(len(components)):
-        path = prefix + "/".join(condensed) + "/"
-        if cell_len(path) < width:
-            break
-        condensed = [*components[:left], "…", *components[right:]]
+    trailing_slash = path.endswith("/")
+    candidate = prefix + "/".join(condensed)
+    if trailing_slash and candidate and not candidate.endswith("/"):
+        candidate += "/"
 
-    return path
+    for left, right in radiate_range(len(components)):
+        if cell_len(candidate) < width:
+            return candidate
+        condensed = [*components[:left], "…", *components[right:]]
+        candidate = prefix + "/".join(condensed)
+        if trailing_slash and candidate and not candidate.endswith("/"):
+            candidate += "/"
+
+    return candidate
 
 
 class CondensedPath(Static):
