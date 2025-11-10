@@ -125,7 +125,7 @@ SCHEMA: list[SchemaDict] = [
                 "title": "Tool call expand",
                 "help": "When should Toad expand tool calls?",
                 "type": "choices",
-                "default": "both",
+                "default": "fail",
                 "choices": [
                     ("Never", "never"),
                     ("Always", "always"),
