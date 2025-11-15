@@ -546,7 +546,7 @@ class ANSICursorShow(NamedTuple):
 
 
 @rich.repr.auto
-class ANSIAlternateBuffer(NamedTuple):
+class ANSIAlternateScreen(NamedTuple):
     """Toggle the alternate buffer."""
 
     enable: bool
@@ -561,7 +561,7 @@ class ANSIWorkingDirectory(NamedTuple):
 
 
 type ANSICommand = (
-    ANSICursor | ANSIClear | ANSICursorShow | ANSIAlternateBuffer | ANSIWorkingDirectory
+    ANSICursor | ANSIClear | ANSICursorShow | ANSIAlternateScreen | ANSIWorkingDirectory
 )
 
 
@@ -641,8 +641,8 @@ class ANSIStream:
     CLEAR_SCREEN_SCROLLBACK = ANSIClear("scrollback")
     SHOW_CURSOR = ANSICursorShow(True)
     HIDE_CURSOR = ANSICursorShow(False)
-    ENABLE_ALTERNATE_BUFFER = ANSIAlternateBuffer(True)
-    DISABLE_ALTERNATE_BUFFER = ANSIAlternateBuffer(False)
+    ENABLE_ALTERNATE_SCREEN = ANSIAlternateScreen(True)
+    DISABLE_ALTERNATE_SCREEN = ANSIAlternateScreen(False)
 
     @classmethod
     @lru_cache(maxsize=1024)
@@ -700,9 +700,9 @@ class ANSIStream:
                 case ["?25", "", "l"]:
                     return cls.HIDE_CURSOR
                 case ["?1049", "", "h"]:
-                    return cls.ENABLE_ALTERNATE_BUFFER
+                    return cls.ENABLE_ALTERNATE_SCREEN
                 case ["?1049", "", "l"]:
-                    return cls.DISABLE_ALTERNATE_BUFFER
+                    return cls.DISABLE_ALTERNATE_SCREEN
 
         return None
 
@@ -738,8 +738,10 @@ class ANSIStream:
 
 
 class LineFold(NamedTuple):
+    """A line from the terminal, folded for presentation."""
+
     line_no: int
-    """The line number."""
+    """The (unfolded) line number."""
 
     line_offset: int
     """The index of the folded line."""
@@ -756,19 +758,31 @@ class LineFold(NamedTuple):
 
 @dataclass
 class LineRecord:
+    """A single line in the terminal."""
+
     content: Content
+    """The content."""
+
     folds: list[LineFold] = field(default_factory=list)
+    """Line "folds" for wrapped lines."""
+
     updates: int = 0
+    """An integer used for caching."""
 
 
 @dataclass
 class Buffer:
     lines: list[LineRecord] = field(default_factory=list)
+    """unfolded lines."""
+
     line_to_fold: list[int] = field(default_factory=list)
+    """An index from folded lines on to unfolded lines."""
+
     folded_lines: list[LineFold] = field(default_factory=list)
+    """Folded lines."""
 
     cursor_line: int = 0
-    """Folder line index."""
+    """Folded line index."""
     cursor_offset: int = 0
     """Folded line offset."""
 
@@ -779,6 +793,30 @@ class Buffer:
     @property
     def line_count(self) -> int:
         return len(self.lines)
+
+    @property
+    def unfolded_line(self) -> int:
+        cursor_folded_line = self.folded_lines[self.cursor_line]
+        return cursor_folded_line.line_no
+
+    @property
+    def cursor(self) -> tuple[int, int]:
+        """The cursor offset within the un-folded lines."""
+
+        if self.cursor_line >= len(self.folded_lines):
+            return (len(self.folded_lines), 0)
+        cursor_folded_line = self.folded_lines[self.cursor_line]
+        cursor_line_offset = cursor_folded_line.line_offset
+        line_no = cursor_folded_line.line_no
+        line = self.lines[line_no]
+        position = 0
+        for folded_line_offset, folded_line in enumerate(line.folds):
+            if folded_line_offset == cursor_line_offset:
+                position += self.cursor_offset
+                break
+            position += len(folded_line.content)
+
+        return (line_no, position)
 
 
 class TerminalState:
@@ -811,7 +849,7 @@ class TerminalState:
     @property
     def buffer(self) -> Buffer:
         """The buffer (scrollack or alternate)"""
-        if self.alternate_buffer:
+        if self.alternate_screen:
             return self.alternate_buffer
         return self.scrollback_buffer
 
@@ -835,6 +873,45 @@ class TerminalState:
             self.width = width
         if height is not None:
             self.height = height
+        self._reflow()
+
+    def _reflow(self) -> None:
+        buffer = self.buffer
+        if not buffer.lines:
+            return
+
+        # Unfolded cursor position
+        cursor_line, cursor_offset = buffer.cursor
+        print(cursor_line, cursor_offset)
+
+        buffer.folded_lines.clear()
+        buffer.line_to_fold.clear()
+        width = self.width
+
+        for line_no, line_record in enumerate(buffer.lines):
+            line_expanded_tabs = line_record.content.expand_tabs(8)
+            line_record.folds[:] = self._fold_line(line_no, line_expanded_tabs, width)
+            line_record.updates = self.advance_updates()
+            buffer.line_to_fold.append(len(buffer.folded_lines))
+            buffer.folded_lines.extend(line_record.folds)
+
+        line = buffer.lines[cursor_line]
+        fold_cursor_line = buffer.line_to_fold[cursor_line]
+
+        for fold in reversed(line.folds):
+            if cursor_offset >= fold.offset:
+                fold_cursor_line += fold.line_offset
+                fold_cursor_offset = cursor_offset - fold.offset
+                break
+
+        # print("!", fold_cursor_line)
+        # fold_cursor_offset = (
+        #     cursor_offset - buffer.folded_lines[fold_cursor_line].offset
+        # )
+        buffer.cursor_line = fold_cursor_line
+        buffer.cursor_offset = fold_cursor_offset
+
+        print("new cursor", buffer.cursor_line, buffer.cursor_offset)
 
     def write(self, text: str) -> None:
         """Write to the terminal.
@@ -920,8 +997,8 @@ class TerminalState:
             case ANSICursorShow(show_cursor):
                 self.show_cursor = show_cursor
 
-            case ANSIAlternateBuffer(alternate_buffer):
-                self.alternate_buffer = alternate_buffer
+            case ANSIAlternateScreen(alternate_buffer):
+                self.alternate_screen = alternate_buffer
 
             case ANSIWorkingDirectory(path):
                 self.current_directory = path

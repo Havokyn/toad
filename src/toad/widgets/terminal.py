@@ -53,9 +53,12 @@ class Terminal(ScrollView):
 
     def _on_resize(self, event: events.Resize) -> None:
         self._render_cache.grow(event.size.height * 2)
+        self._update_width()
 
     def _update_width(self) -> None:
         window_width = self.scrollable_content_region.width or 80
+        if window_width == self._width:
+            return
         self._width = window_width
         # self.max_window_width = max(self.max_window_width, window_width)
         # if self.minimum_terminal_width == -1 and window_width:
@@ -66,6 +69,8 @@ class Terminal(ScrollView):
         # )
         # self._width = width
         self.state.update_size(width=self._width)
+        self._render_cache.clear()
+        self.refresh()
 
     def on_mount(self) -> None:
         self.auto_links = False
