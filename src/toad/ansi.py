@@ -643,6 +643,9 @@ class ANSICursor(NamedTuple):
     replace: tuple[int | None, int | None] | None = None
     """Replace range (slice like)."""
     relative: bool = False
+    """Should replace be relative (`False`) or absolute (`True`)"""
+    update_background: bool = False
+    """Optional style for remaining line."""
 
     def __rich_repr__(self) -> rich.repr.Result:
         yield "delta_x", self.delta_x, None
@@ -651,6 +654,7 @@ class ANSICursor(NamedTuple):
         yield "absolute_y", self.absolute_y, None
         yield "text", self.text, None
         yield "replace", self.replace, None
+        yield "update_background", self.update_background, False
 
     def get_replace_offsets(
         self, cursor_offset: int, line_length: int
@@ -776,7 +780,7 @@ type ANSICommand = (
 class ANSIStream:
     def __init__(self) -> None:
         self.parser = ANSIParser()
-        self.style = Style()
+        self.style = NULL_STYLE
         self.show_cursor = True
 
     @classmethod
@@ -838,9 +842,15 @@ class ANSIStream:
         "\r": ANSICursor(absolute_x=0),
         "\x08": ANSICursor(delta_x=-1),
     }
-    CLEAR_LINE_CURSOR_TO_END = ANSICursor(replace=(None, -1), text="")
-    CLEAR_LINE_CURSOR_TO_BEGINNING = ANSICursor(replace=(0, None), text="")
-    CLEAR_LINE = ANSICursor(replace=(0, -1), text="", absolute_x=0)
+    CLEAR_LINE_CURSOR_TO_END = ANSICursor(
+        replace=(None, -1), text="", update_background=True
+    )
+    CLEAR_LINE_CURSOR_TO_BEGINNING = ANSICursor(
+        replace=(0, None), text="", update_background=True
+    )
+    CLEAR_LINE = ANSICursor(
+        replace=(0, -1), text="", absolute_x=0, update_background=True
+    )
     CLEAR_SCREEN_CURSOR_TO_END = ANSIClear("cursor_to_end")
     CLEAR_SCREEN_CURSOR_TO_BEGINNING = ANSIClear("cursor_to_beginning")
     CLEAR_SCREEN = ANSIClear("screen")
@@ -891,7 +901,7 @@ class ANSIStream:
         """
         print(repr(csi))
         if match := re.fullmatch(r"\x1b\[(\d+)?(?:;)?(\d*)?(\w)", csi):
-            match match.groups():
+            match match.groups(default=""):
                 case [lines, _, "A"]:
                     return ANSICursor(delta_y=-int(lines or 1))
                 case [lines, _, "B"]:
@@ -1088,6 +1098,9 @@ class LineRecord:
     content: Content
     """The content."""
 
+    style: Style = NULL_STYLE
+    """The style for the remaining line."""
+
     folds: list[LineFold] = field(default_factory=list)
     """Line "folds" for wrapped lines."""
 
@@ -1097,6 +1110,8 @@ class LineRecord:
 
 @dataclass
 class Buffer:
+    """A terminal buffer (scrollback or alternate)"""
+
     lines: list[LineRecord] = field(default_factory=list)
     """unfolded lines."""
 
@@ -1513,6 +1528,7 @@ class TerminalState:
         """The mouse tracking state."""
 
         self._updates: int = 0
+        """Incrementing integer used in caching."""
 
     def __rich_repr__(self) -> rich.repr.Result:
         yield "width", self.width
@@ -1660,6 +1676,9 @@ class TerminalState:
         height = min(line_count, self.height)
         if clear == "screen":
             buffer.clear(self.advance_updates())
+            style = self.style
+            for line_no in range(self.height):
+                self.add_line(buffer, EMPTY_LINE, style)
             # del buffer.lines[:]
             # del buffer.folded_lines[:]
             # self._updates += 1
@@ -1685,17 +1704,8 @@ class TerminalState:
         margin_bottom = (
             0 if self.scroll_margin_bottom is None else (self.scroll_margin_bottom - 1)
         )
-
-        print("MARGIN_TOP", margin_top)
-        print("MARGIN_BOTTOM", margin_bottom)
-
         line_start = line_count - height + margin_top
         line_end = line_count
-
-        print("DIRECTION", direction)
-        print("LINES:", lines)
-        print(line_start)
-        print(line_end)
 
         if direction == -1:
             # up
@@ -1711,9 +1721,6 @@ class TerminalState:
                 self.update_line(buffer, line_no, copy_line)
 
         else:
-            # down
-            # for _ in range(lines):
-            #    self.add_line(buffer, EMPTY_LINE)
             for line_no in reversed(
                 range(line_start + lines, line_end - margin_bottom + 1)
             ):
@@ -1730,12 +1737,19 @@ class TerminalState:
                 ansi_command = ANSICursor(delta_y=+1)
             else:
                 ansi_command = ANSICursor(delta_y=+1, absolute_x=0)
-        print(ansi_command)
 
         match ansi_command:
             case ANSIStyle(style):
                 self.style = style
-            case ANSICursor(delta_x, delta_y, absolute_x, absolute_y, text, replace):
+            case ANSICursor(
+                delta_x,
+                delta_y,
+                absolute_x,
+                absolute_y,
+                text,
+                replace,
+                update_background,
+            ):
                 buffer = self.buffer
                 folded_lines = buffer.folded_lines
                 if buffer.cursor_line >= len(folded_lines):
@@ -1745,6 +1759,8 @@ class TerminalState:
                 folded_line = folded_lines[buffer.cursor_line]
                 previous_content = folded_line.content
                 line = buffer.lines[folded_line.line_no]
+                if update_background:
+                    line.style = self.style
 
                 if text is not None:
                     content = Content.styled(
@@ -1871,9 +1887,9 @@ class TerminalState:
 
             case _:
                 print("Unhandled", ansi_command)
-        from textual import log
+        # from textual import log
 
-        log(self)
+        # log(self)
 
     def _line_updated(self, buffer: Buffer, line_no: int) -> None:
         """Mark a line has having been udpated.
@@ -1908,12 +1924,17 @@ class TerminalState:
         assert len(folds)
         return folds
 
-    def add_line(self, buffer: Buffer, content: Content) -> None:
+    def add_line(
+        self, buffer: Buffer, content: Content, style: Style = NULL_STYLE
+    ) -> None:
         updates = self.advance_updates()
         line_no = buffer.line_count
         width = self.width
         line_record = LineRecord(
-            content, self._fold_line(line_no, content, width), updates
+            content,
+            style,
+            self._fold_line(line_no, content, width),
+            updates,
         )
         buffer.lines.append(line_record)
         folds = line_record.folds

@@ -143,6 +143,8 @@ if __name__ == "__main__":
 
     # COMMAND = "uv run python test_scroll_region.py"
 
+    COMMAND = "htop"
+
     class CommandApp(App):
         CSS = """
         Screen {

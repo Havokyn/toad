@@ -274,10 +274,10 @@ def main():
     """Run all tests"""
     try:
         # Run all tests
-        # test_basic_scroll_up()
-        # test_basic_scroll_down()
+        test_basic_scroll_up()
+        test_basic_scroll_down()
 
-        # test_scroll_region_up()
+        test_scroll_region_up()
         test_scroll_region_down()
 
         test_cursor_preservation()

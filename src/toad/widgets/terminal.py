@@ -135,9 +135,8 @@ class Terminal(ScrollView, can_focus=True):
             buffer = state.alternate_buffer
 
         try:
-            line_no, line_offset, offset, line, updates = buffer.folded_lines[
-                y - buffer_offset
-            ]
+            folded_line = buffer.folded_lines[y - buffer_offset]
+            line_no, line_offset, offset, line, updates = folded_line
         except IndexError:
             return Strip.blank(width, rich_style)
 
@@ -183,9 +182,11 @@ class Terminal(ScrollView, can_focus=True):
                 except IndexError:
                     pass
 
-        # if line.cell_length < width:
-        #     line = line.extend_right(width - line.cell_length)
         strip = Strip(line.render_segments(visual_style), cell_length=line.cell_length)
+        if strip.cell_length < width and (
+            background_style := buffer.lines[line_no].style
+        ):
+            strip = strip.adjust_cell_length(width, background_style.rich_style)
 
         if cache_key is not None:
             self._terminal_render_cache[cache_key] = strip
