@@ -385,6 +385,8 @@ class ANSIParser(StreamParser[tuple[str, str]]):
                     yield "separator", token.text
                 continue
 
+            if "\t" in token.text:
+                print("TABS")
             yield "content", token.text
 
 
@@ -1113,10 +1115,8 @@ class ANSIStream:
             case ["control", code]:
                 if (control := CONTROL_CODES.get(code)) is not None:
                     if control == "ri":  # control code
-                        print("RI")
                         yield ANSICursor(delta_y=-1, auto_scroll=True)
                     elif control == "ind":
-                        print("IND")
                         yield ANSICursor(delta_y=+1, auto_scroll=True)
                 print("CONTROL", repr(code), repr(control))
 
@@ -1844,20 +1844,25 @@ class TerminalState:
                         self.add_line(buffer, EMPTY_LINE)
 
                 if auto_scroll and delta_y is not None:
-                    start_line_no = self.screen_start_line_no
-                    scroll_cursor = buffer.cursor_line + delta_y
-                    if delta_y == +1 and (
-                        scroll_cursor
-                        >= (start_line_no + (buffer.scroll_margin.bottom or 0))
+                    margin_top, margin_bottom = buffer.scroll_margin.get_line_range(
+                        self.height
+                    )
+                    if (
+                        buffer.cursor_line >= margin_top
+                        and buffer.cursor_line <= margin_bottom
                     ):
-                        self.scroll_buffer(-1, 1)
-                        return
-                    elif delta_y == -1 and (
-                        scroll_cursor
-                        <= (start_line_no + (buffer.scroll_margin.top or 0))
-                    ):
-                        self.scroll_buffer(+1, 1)
-                        return
+                        start_line_no = self.screen_start_line_no
+                        scroll_cursor = buffer.cursor_line + delta_y
+                        if delta_y == +1 and (
+                            scroll_cursor >= (start_line_no + margin_bottom)
+                        ):
+                            self.scroll_buffer(-1, 1)
+                            return
+                        elif delta_y == -1 and (
+                            scroll_cursor <= (start_line_no + margin_top)
+                        ):
+                            self.scroll_buffer(+1, 1)
+                            return
 
                 folded_line = folded_lines[buffer.cursor_line]
                 previous_content = folded_line.content
@@ -1888,14 +1893,6 @@ class TerminalState:
                             line.content[end_replace + 1 :],
                             strip_control_codes=False,
                         )
-                        if updated_line.cell_length < self.width:
-                            blank_width = self.width - updated_line.cell_length
-                            updated_line += Content.styled(
-                                " " * blank_width,
-                                self.style,
-                                blank_width,
-                                strip_control_codes=False,
-                            )
                     else:
                         if cursor_line_offset == len(line.content):
                             updated_line = line.content + content

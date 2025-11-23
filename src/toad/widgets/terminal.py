@@ -190,7 +190,9 @@ class Terminal(ScrollView, can_focus=True):
             self._terminal_render_cache[cache_key] = strip
 
         strip = strip.crop(x, x + width)
-        strip = strip.adjust_cell_length(width, line_record.style.rich_style)
+        strip = strip.adjust_cell_length(
+            width, (visual_style + line_record.style).rich_style
+        )
         strip = strip.apply_offsets(x + offset, line_no)
 
         return strip

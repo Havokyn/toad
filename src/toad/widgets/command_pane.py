@@ -144,7 +144,11 @@ if __name__ == "__main__":
     COMMAND = "uv run python test_scroll_region.py"
 
     COMMAND = "uv run python test_scroll_margins.py"
+
     COMMAND = "htop"
+    # COMMAND = "uv run python test_ind.py"
+    COMMAND = "nano"
+    COMMAND = "uv run textual keys"
 
     class CommandApp(App):
         CSS = """
