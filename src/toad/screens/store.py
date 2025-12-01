@@ -300,7 +300,7 @@ class StoreScreen(Screen):
         ]
         if recommended_agents:
             with containers.VerticalGroup(id="sponsored-agents", classes="recommended"):
-                yield widgets.Static("Recommended Agents", classes="heading")
+                yield widgets.Static("Recommended", classes="heading")
                 with AgentGridSelect(classes="agents-picker", min_column_width=40):
                     for agent in recommended_agents:
                         yield AgentItem(agent)
