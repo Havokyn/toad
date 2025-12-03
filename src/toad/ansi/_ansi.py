@@ -489,11 +489,8 @@ class ANSIStream:
                 case [row, _, "d"]:
                     return ANSICursor(absolute_y=int(row or 1) - 1)
                 case [characters, _, "X"]:
-                    character_count = int(characters or 1)
                     return ANSICursor(
-                        replace=(None, int(character_count)),
-                        relative=True,
-                        text=" " * character_count,
+                        replace=(None, int(characters or 1)), relative=True, erase=True
                     )
                 case ["0" | "", _, "J"]:
                     return cls.CLEAR_SCREEN_CURSOR_TO_END
@@ -1380,47 +1377,6 @@ class TerminalState:
                 buffer._updated_lines.add(line_no)
         except IndexError:
             pass
-
-    @classmethod
-    def _wrap_content(cls, content: Content, width: int) -> list[Content]:
-        """Wrap Content to specified width based on cell width.
-
-        Args:
-            content: The Content object to wrap.
-            width: Maximum cell width per line.
-
-        Returns:
-            List of Content objects, one per line.
-        """
-        if width <= 0:
-            return [content]
-
-        if content.cell_length <= width:
-            return [content]
-
-        plain = content.plain
-        n = len(plain)
-
-        # Pre-compute cumulative cell widths: O(n)
-        cumulative = [0, *accumulate(cell_len(c) for c in plain)]
-
-        # Find break indices using binary search: O(lines * log n)
-        breaks = [0]
-        start = 0
-
-        while start < n:
-            target = cumulative[start] + width
-            end = bisect_right(cumulative, target, start + 1, n + 1) - 1
-
-            # Ensure progress (handles chars wider than width)
-            if end <= start:
-                end = start + 1
-
-            breaks.append(end)
-            start = end
-
-        # Slice content at break points
-        return [content[breaks[i] : breaks[i + 1]] for i in range(len(breaks) - 1)]
 
     def _fold_line(self, line_no: int, line: Content, width: int) -> list[LineFold]:
         updates = self._updates
