@@ -90,8 +90,12 @@ class Shell:
         new_settings[3] = new_settings[3] & ~termios.ECHO  # lflag is at index 3
         termios.tcsetattr(self.master, termios.TCSADRAIN, new_settings)
 
+        
         get_pwd_command = f"{command};" + r'printf "\e]2025;$(pwd);\e\\"' + "\n"
-        self.writer.write(get_pwd_command.encode("utf-8"))
+        await self.write(get_pwd_command)
+
+        
+        await asyncio.sleep(0.1)
 
         termios.tcsetattr(self.master, termios.TCSADRAIN, old_settings)
 
@@ -116,6 +120,10 @@ class Shell:
         with suppress(OSError):
             resize_pty(self.master, width, max(height, 1))
 
+    async def write(self, text:str) -> None:
+        data = text.encode("utf-8")
+        await  asyncio.get_event_loop().run_in_executor(None, os.write, self.master, data)
+
     async def run(self) -> None:
         current_directory = self.working_directory
 
@@ -124,6 +132,12 @@ class Shell:
 
         flags = fcntl.fcntl(master, fcntl.F_GETFL)
         fcntl.fcntl(master, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
+        def setup_pty():
+            # Create new session and become session leader
+            os.setsid()
+            # Set the controlling terminal
+            fcntl.ioctl(slave, termios.TIOCSCTTY, 0)
 
         env = os.environ.copy()
         env["FORCE_COLOR"] = "1"
@@ -143,7 +157,8 @@ class Shell:
                 stderr=slave,
                 env=env,
                 cwd=current_directory,
-                start_new_session=True,  # Linux / macOS only
+                preexec_fn=setup_pty
+                # start_new_session=True,  # Linux / macOS only
             )
         except Exception as error:
             self.conversation.notify(
@@ -177,14 +192,15 @@ class Shell:
             old_settings = termios.tcgetattr(self.master)
             new_settings = termios.tcgetattr(self.master)
             new_settings[3] = new_settings[3] & ~termios.ECHO  # lflag is at index 3
-            termios.tcsetattr(self.master, termios.TCSADRAIN, new_settings)
+            termios.tcsetattr(self.master, termios.TCSADRAIN, new_settings)                
 
             shell_start = self.shell_start.strip()
             if not shell_start.endswith("\n"):
                 shell_start += "\n"
-            self.writer.write(shell_start.encode("utf-8"))
+            await self.write(shell_start)
+            await asyncio.sleep(0.1)
 
-            termios.tcsetattr(slave, termios.TCSADRAIN, old_settings)
+            termios.tcsetattr(self.master, termios.TCSADRAIN, old_settings)
 
         unicode_decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
 

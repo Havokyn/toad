@@ -518,7 +518,7 @@ wheels = [
 [[package]]
 name = "textual"
 version = "6.7.1"
-source = { editable = "../textual" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "markdown-it-py", extra = ["linkify"] },
     { name = "mdit-py-plugins" },
@@ -526,6 +526,10 @@ dependencies = [
     { name = "pygments" },
     { name = "rich" },
     { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ab/00/9520327698acb6d8ae120b311ef1901840d55a6c41580e377f36261daf7a/textual-6.7.1.tar.gz", hash = "sha256:2a5acb0ab316a7ba9e74b0a291fab8933d681d7cf6f4e1eeb45c39a731b094cf", size = 1580916, upload-time = "2025-12-01T20:57:25.578Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2f/7a/7f3ea5e6f26d546ee4bd107df8fc9eef9f149dab0f6f15e1fc9f9413231f/textual-6.7.1-py3-none-any.whl", hash = "sha256:b92977ac5941dd37b6b7dc0ac021850ce8d9bf2e123c5bab7ff2016f215272e0", size = 713993, upload-time = "2025-12-01T20:57:23.698Z" },
 ]
 
 [package.optional-dependencies]
@@ -548,37 +552,10 @@ syntax = [
     { name = "tree-sitter-yaml" },
 ]
 
-[package.metadata]
-requires-dist = [
-    { name = "markdown-it-py", extras = ["linkify"], specifier = ">=2.1.0" },
-    { name = "mdit-py-plugins" },
-    { name = "platformdirs", specifier = ">=3.6.0,<5" },
-    { name = "pygments", specifier = ">=2.19.2,<3.0.0" },
-    { name = "rich", specifier = ">=14.2.0" },
-    { name = "tree-sitter", marker = "python_full_version >= '3.10' and extra == 'syntax'", specifier = ">=0.25.0" },
-    { name = "tree-sitter-bash", marker = "python_full_version >= '3.10' and extra == 'syntax'", specifier = ">=0.23.0" },
-    { name = "tree-sitter-css", marker = "python_full_version >= '3.10' and extra == 'syntax'", specifier = ">=0.23.0" },
-    { name = "tree-sitter-go", marker = "python_full_version >= '3.10' and extra == 'syntax'", specifier = ">=0.23.0" },
-    { name = "tree-sitter-html", marker = "python_full_version >= '3.10' and extra == 'syntax'", specifier = ">=0.23.0" },
-    { name = "tree-sitter-java", marker = "python_full_version >= '3.10' and extra == 'syntax'", specifier = ">=0.23.0" },
-    { name = "tree-sitter-javascript", marker = "python_full_version >= '3.10' and extra == 'syntax'", specifier = ">=0.23.0" },
-    { name = "tree-sitter-json", marker = "python_full_version >= '3.10' and extra == 'syntax'", specifier = ">=0.24.0" },
-    { name = "tree-sitter-markdown", marker = "python_full_version >= '3.10' and extra == 'syntax'", specifier = ">=0.3.0" },
-    { name = "tree-sitter-python", marker = "python_full_version >= '3.10' and extra == 'syntax'", specifier = ">=0.23.0" },
-    { name = "tree-sitter-regex", marker = "python_full_version >= '3.10' and extra == 'syntax'", specifier = ">=0.24.0" },
-    { name = "tree-sitter-rust", marker = "python_full_version >= '3.10' and extra == 'syntax'", specifier = ">=0.23.0" },
-    { name = "tree-sitter-sql", marker = "python_full_version >= '3.10' and extra == 'syntax'", specifier = ">=0.3.11" },
-    { name = "tree-sitter-toml", marker = "python_full_version >= '3.10' and extra == 'syntax'", specifier = ">=0.6.0" },
-    { name = "tree-sitter-xml", marker = "python_full_version >= '3.10' and extra == 'syntax'", specifier = ">=0.7.0" },
-    { name = "tree-sitter-yaml", marker = "python_full_version >= '3.10' and extra == 'syntax'", specifier = ">=0.6.0" },
-    { name = "typing-extensions", specifier = ">=4.4.0,<5.0.0" },
-]
-provides-extras = ["syntax"]
-
 [[package]]
 name = "textual-dev"
 version = "1.8.0"
-source = { editable = "../textual-dev" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "click" },
@@ -587,15 +564,9 @@ dependencies = [
     { name = "textual-serve" },
     { name = "typing-extensions" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiohttp", specifier = ">=3.8.1" },
-    { name = "click", specifier = ">=8.1.2" },
-    { name = "msgpack", specifier = ">=1.0.3" },
-    { name = "textual", specifier = ">=0.86.2" },
-    { name = "textual-serve", specifier = ">=1.0.3" },
-    { name = "typing-extensions", specifier = ">=4.4.0,<5.0.0" },
+sdist = { url = "https://files.pythonhosted.org/packages/38/fd/fd5ad9527b536c306a5a860a33a45e13983a59804b48b91ea52b42ba030a/textual_dev-1.8.0.tar.gz", hash = "sha256:7e56867b0341405a95e938cac0647e6d2763d38d0df08710469ad6b6a8db76df", size = 25026, upload-time = "2025-10-11T09:47:01.824Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/45/c6/1dc08ceee6d0bdf219c500cb2fbd605b681b63507c4ff27a6477f12f8245/textual_dev-1.8.0-py3-none-any.whl", hash = "sha256:227b6d24a485fbbc77e302aa21f4fdf3083beb57eb45cd95bae082c81cbeddeb", size = 27541, upload-time = "2025-10-11T09:47:00.531Z" },
 ]
 
 [[package]]
@@ -674,7 +645,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "platformdirs", specifier = ">=4.3.8" },
     { name = "rich" },
-    { name = "textual", extras = ["syntax"], editable = "../textual" },
+    { name = "textual", extras = ["syntax"], specifier = ">=6.7.0" },
     { name = "textual-serve", specifier = ">=1.1.2" },
     { name = "textual-speedups", specifier = "==0.2.1" },
     { name = "tree-sitter", specifier = ">=0.24.0" },
@@ -685,7 +656,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "pyinstrument", specifier = ">=5.1.1" },
-    { name = "textual-dev", editable = "../textual-dev" },
+    { name = "textual-dev", specifier = ">=1.8.0" },
 ]
 
 [[package]]

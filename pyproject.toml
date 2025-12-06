@@ -26,8 +26,8 @@ members = [
 
 [tool.uv.sources]
 #textual-serve = { path = "../textual-serve", editable = true }
-textual = { path = "../textual", editable = true }
-textual-dev = { path = "../textual-dev", editable = true }
+# textual = { path = "../textual", editable = true }
+# textual-dev = { path = "../textual-dev", editable = true }
 #rich = { path = "../rich", editable = true }
 
 [project.scripts]
