@@ -14,7 +14,6 @@ import termios
 from typing import Mapping
 
 from textual.content import Content
-from textual import events
 from textual.reactive import var
 
 from toad.shell_read import shell_read
@@ -184,15 +183,6 @@ class TerminalTool(Terminal):
         flags = fcntl.fcntl(master, fcntl.F_GETFL)
         fcntl.fcntl(master, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
-        # # Get terminal attributes
-        # attrs = termios.tcgetattr(slave)
-
-        # # Disable echo (ECHO flag)
-        # attrs[3] &= ~termios.ECHO
-
-        # # Apply the changes
-        # termios.tcsetattr(slave, termios.TCSANOW, attrs)
-
         command = self._command
         environment = os.environ | command.env
 
@@ -249,7 +239,7 @@ class TerminalTool(Terminal):
                 data = await shell_read(reader, BUFFER_SIZE)
                 if process_data := unicode_decoder.decode(data, final=not data):
                     self._record_output(data)
-                    if self.write(process_data):
+                    if await self.write(process_data):
                         self.display = True
                 if not data:
                     break
