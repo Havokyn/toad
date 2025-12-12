@@ -10,7 +10,7 @@ from textual.command import Hit, Hits, Provider, DiscoveryHit
 from textual.content import Content
 from textual.screen import Screen
 from textual.reactive import var, reactive
-from textual.widgets import Footer, OptionList, DirectoryTree
+from textual.widgets import Footer, OptionList, DirectoryTree, Tree
 from textual import containers
 from textual.widget import Widget
 
@@ -21,6 +21,7 @@ from toad.acp import messages as acp_messages
 from toad.widgets.plan import Plan
 from toad.widgets.throbber import Throbber
 from toad.widgets.conversation import Conversation
+from toad.widgets.project_directory_tree import ProjectDirectoryTree
 from toad.widgets.side_bar import SideBar
 
 
@@ -104,7 +105,7 @@ class MainScreen(Screen, can_focus=False):
                 SideBar.Panel("Plan", Plan([])),
                 SideBar.Panel(
                     "Project",
-                    DirectoryTree(
+                    ProjectDirectoryTree(
                         self.project_path,
                         id="project_directory_tree",
                     ),
@@ -115,6 +116,11 @@ class MainScreen(Screen, can_focus=False):
                 MainScreen.project_path
             )
         yield Footer()
+
+    @on(DirectoryTree.FileSelected, "ProjectDirectoryTree")
+    def on_project_directory_tree_selected(self, event: Tree.NodeSelected):
+        if (data := event.node.data) is not None:
+            self.conversation.insert_path_into_prompt(data.path)
 
     @on(acp_messages.Plan)
     async def on_acp_plan(self, message: acp_messages.Plan):

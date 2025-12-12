@@ -278,6 +278,20 @@ class Conversation(containers.Vertical):
     def shell_complete(self, prefix: str) -> list[str]:
         return self.shell_history.complete(prefix)
 
+    def insert_path_into_prompt(self, path: Path) -> None:
+        try:
+            insert_path_text = str(path.relative_to(self.project_path))
+        except Exception:
+            self.app.bell()
+            return
+
+        insert_text = (
+            f'@"{insert_path_text}" '
+            if " " in insert_path_text
+            else f"@{insert_path_text} "
+        )
+        self.prompt.prompt_text_area.insert(insert_text)
+
     async def watch_shell_history_index(self, previous_index: int, index: int) -> None:
         if previous_index == 0:
             self.shell_history.current = self.prompt.text
