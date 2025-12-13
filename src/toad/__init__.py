@@ -2,7 +2,7 @@ from typing import Literal, Mapping
 import platform
 
 NAME = "toad"
-TITLE = "Toad by Will McGugan"
+TITLE = "Toad"
 
 type OS = Literal["linux", "macos", "windows", "*"]
 

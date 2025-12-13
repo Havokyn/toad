@@ -705,20 +705,21 @@ class Prompt(containers.VerticalGroup):
         columns = Columns("auto", "flex")
 
         if not self.is_shell_mode:
-            for slash_command in self.slash_commands:
-                if str(slash_command).startswith(pre_cursor) and pre_cursor != str(
+            # Claude can send duplicated slash commands https://github.com/Textualize/toad/discussions/65
+            deduplicated_slash_commands = {
+                slash_command.command: slash_command
+                for slash_command in self.slash_commands
+            }
+            for slash_command in deduplicated_slash_commands.values():
+                command_name = slash_command.command
+                if command_name.startswith(pre_cursor) and pre_cursor != str(
                     slash_command
                 ):
                     row = columns.add_row(
-                        Content.styled(slash_command.command, "$text-success"),
+                        Content.styled(command_name, "$text-success"),
                         Content.styled(slash_command.help, "dim"),
                     )
-                    suggestions.append(
-                        Option(
-                            row,
-                            id=slash_command.command,
-                        )
-                    )
+                    suggestions.append(Option(row, id=command_name))
 
         self.set_auto_completes(suggestions)
 

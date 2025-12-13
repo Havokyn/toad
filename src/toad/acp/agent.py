@@ -480,7 +480,7 @@ class Agent(AgentBase):
                     reason = "Failed to initialize agent"
                     details = ""
                 self.post_message(AgentFail(reason, details))
-                
+
         self.post_message(AgentReady())
 
     async def send_prompt(self, prompt: str) -> str | None:
@@ -509,7 +509,11 @@ class Agent(AgentBase):
                     },
                     "terminal": True,
                 },
-                {"name": toad.NAME, "title": toad.TITLE, "version": toad.get_version()},
+                {
+                    "name": toad.NAME,
+                    "title": toad.TITLE,
+                    "version": toad.get_version(),
+                },
             )
 
         response = await initialize_response.wait()
