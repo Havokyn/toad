@@ -110,7 +110,6 @@ class HighlightedTextArea(TextArea):
             text = self.text
             if text.startswith("/") and "\n" not in text:
                 content = self.highlight_slash_command(text)
-
                 self._highlight_lines = [content]
                 return self._highlight_lines
 

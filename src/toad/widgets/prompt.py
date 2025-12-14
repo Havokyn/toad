@@ -112,6 +112,9 @@ class PromptTextArea(HighlightedTextArea):
     project_path = var(Path())
     working_directory = var("")
 
+    slash_commands: var[list[SlashCommand]] = var([])
+    slash_command_prefixes: var[tuple[str, ...]] = var(())
+
     class Submitted(Message):
         def __init__(self, markdown: str) -> None:
             self.markdown = markdown
@@ -123,18 +126,24 @@ class PromptTextArea(HighlightedTextArea):
     class CancelShell(Message):
         pass
 
+    def watch_slash_commands(self, slash_commands: list[SlashCommand]) -> None:
+        self.slash_command_prefixes = tuple(
+            [slash_command.command for slash_command in slash_commands]
+        )
+
     def highlight_slash_command(self, text: str) -> Content:
-        if not self.auto_completed_slash_command:
-            return Content(text)
-        if self.auto_completed_slash_command and text.startswith(
-            self.auto_completed_slash_command
-        ):
+        """Override slash command highlighting."""
+
+        if text.startswith(self.slash_command_prefixes):
             content = Content(text)
-            content = content.stylize(
-                "$text-success", 0, len(self.auto_completed_slash_command)
-            )
+            for slash_command in self.slash_commands:
+                if text.startswith(slash_command.command + " "):
+                    content = content.stylize(
+                        "$text-success", 0, len(slash_command.command)
+                    )
+                    break
             return content
-        return super().highlight_slash_command(text)
+        return Content(text)
 
     def highlight_shell(self, text: str) -> Content:
         """Override shell highlighting with additional danger detection."""
@@ -328,9 +337,14 @@ class PromptTextArea(HighlightedTextArea):
                 direction = 0
             line = self.document.get_line(y)
 
-            if x == 1 and direction == +1 and line[0] == "/":
+            if y == 0 and x == 1 and direction == +1 and line and line[0] == "/":
                 self.post_message(InvokeSlashComplete())
                 return
+
+            if y == 0 and line and line[0] == "/" and direction == -1:
+                if line in self.slash_command_prefixes:
+                    self.selection = Selection((0, 0), (0, len(line)))
+                    return
 
             for _path, start, end in extract_paths_from_prompt(line):
                 if x > start and x < end:
@@ -668,6 +682,7 @@ class Prompt(containers.VerticalGroup):
                     project_path=Prompt.project_path,
                     working_directory=Prompt.working_directory,
                     auto_completed_slash_command=Prompt.auto_completed_slash_command,
+                    slash_commands=Prompt.slash_commands,
                 )
 
         with containers.HorizontalGroup(id="info-container"):
