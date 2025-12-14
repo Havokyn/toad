@@ -252,7 +252,6 @@ class Conversation(containers.Vertical):
         self.set_reactive(Conversation.project_path, project_path)
         self.set_reactive(Conversation.working_directory, str(project_path))
         self.agent_slash_commands: list[SlashCommand] = []
-        self.slash_command_hints: dict[str, str] = {}
         self.terminals: dict[str, TerminalTool] = {}
         self._loading: Loading | None = None
         self._agent_response: AgentResponse | None = None
@@ -996,14 +995,12 @@ class Conversation(containers.Vertical):
             SlashCommand("/about-toad", "About Toad"),
         ]
         slash_commands.extend(self.agent_slash_commands)
-        slash_commands.sort(key=attrgetter("command"))
-
-        self.slash_command_hints = {
-            slash_command.command: slash_command.hint
-            for slash_command in slash_commands
-            if slash_command.hint
+        deduplicated_slash_commands = {
+            slash_command.command: slash_command for slash_command in slash_commands
         }
-
+        slash_commands = sorted(
+            deduplicated_slash_commands.values(), key=attrgetter("command")
+        )
         return slash_commands
 
     def update_slash_commands(self) -> None:
