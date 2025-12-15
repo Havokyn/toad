@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 
+import asyncio
 from functools import lru_cache
 from operator import itemgetter
 from pathlib import Path
@@ -18,13 +19,13 @@ from textual import getters
 from textual import containers
 from textual.reactive import var, Initialize
 from textual.content import Content, Span
-from textual.fuzzy import FuzzySearch
 from textual.widget import Widget
 from textual.widgets import OptionList, Input
 from textual.widgets.option_list import Option
 
 
 from toad import directory
+from toad.fuzzy import FuzzySearch
 from toad.messages import Dismiss, InsertPath, PromptSuggestion
 
 
@@ -53,8 +54,9 @@ class PathFuzzySearch(FuzzySearch):
         # Boost first letter matches
         offset_count = len(positions)
         score: float = offset_count + len(first_letters.intersection(positions))
-        if 0 in first_letters:
-            score += 1
+
+        # if 0 in first_letters:
+        #     score += 1
 
         groups = 1
         last_offset, *offsets = positions
@@ -178,8 +180,7 @@ class PathSearch(containers.VerticalGroup):
     def watch_root(self, root: Path) -> None:
         pass
 
-    @work(thread=True, exit_on_error=False)
-    async def get_path_spec(self, git_ignore_path: Path) -> PathSpec | None:
+    def get_path_spec(self, git_ignore_path: Path) -> PathSpec | None:
         """Get a path spec instance if there is a .gitignore file present.
 
         Args:
@@ -207,7 +208,8 @@ class PathSearch(containers.VerticalGroup):
 
         self.loading = True
 
-        path_spec = await self.get_path_spec(root / ".gitignore").wait()
+        path_spec = await asyncio.to_thread(self.get_path_spec, root / ".gitignore")
+        # path_spec = await self.get_path_spec(root / ".gitignore").wait()
         paths = await directory.scan(root, path_spec=path_spec, add_directories=True)
 
         paths = [path.absolute() for path in paths]

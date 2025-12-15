@@ -84,7 +84,10 @@ class CommandPane(Terminal):
         if self._master is None:
             return 0
         text_bytes = text.encode("utf-8", "ignore") if isinstance(text, str) else text
-        return await asyncio.to_thread(os.write, self._master, text_bytes)
+        try:
+            return await asyncio.to_thread(os.write, self._master, text_bytes)
+        except OSError:
+            return 0
 
     async def _execute(self, command: str, *, final: bool = True) -> None:
         # width, height = self.scrollable_content_region.size

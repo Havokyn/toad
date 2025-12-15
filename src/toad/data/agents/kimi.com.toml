@@ -2,11 +2,11 @@
 # https://github.com/MoonshotAI/kimi-cli
 
 identity = "kimi.com"
-name = "Kimi"
+name = "Kimi CLI"
 short_name = "kimi"
 url = "https://www.kimi.com/"
 protocol = "acp"
-author_name = "Mistral"
+author_name = "Moonshot AI"
 author_url = "https://www.kimi.com/"
 publisher_name = "Will McGugan"
 publisher_url = "https://willmcgugan.github.io/"

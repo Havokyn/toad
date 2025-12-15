@@ -116,6 +116,11 @@ class Terminal(ScrollView, can_focus=True):
     def alternate_screen(self) -> bool:
         return self._alternate_screen
 
+    def notify_style_update(self) -> None:
+        """Clear cache when theme chages."""
+        self._terminal_render_cache.clear()
+        super().notify_style_update()
+
     def set_state(self, state: ansi.TerminalState) -> None:
         """Set the terminal state, if this terminal is to inherit an existing state.
 

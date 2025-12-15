@@ -39,6 +39,6 @@ Visit [openhands-dev](https://openhands.dev/) for more information.
 
 [actions."*".install]
 command = "uv tool install openhands -U --python 3.12"
-bootstral_uv = true
+bootstrap_uv = true
 description = "Install OpenHands"
 

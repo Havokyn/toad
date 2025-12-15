@@ -6,7 +6,7 @@ from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.content import Content, Span
-from textual.fuzzy import FuzzySearch
+
 from textual import getters
 from textual.message import Message
 from textual.reactive import var
@@ -14,6 +14,7 @@ from textual import containers
 from textual import widgets
 from textual.widgets.option_list import Option
 
+from toad.fuzzy import FuzzySearch
 from toad.messages import Dismiss
 from toad.slash_command import SlashCommand
 from toad.visuals.columns import Columns
