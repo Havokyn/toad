@@ -238,15 +238,24 @@ class Question(Widget, can_focus=True):
         with containers.VerticalGroup():
             if self.question:
                 yield Label(self.question, id="prompt")
+
             with containers.VerticalGroup(id="option-container"):
+                kinds: set[str] = set()
                 for index, answer in enumerate(self.options):
                     active = index == self.selection
+                    key = (
+                        self.DEFAULT_KINDS.get(answer.kind)
+                        if (answer.kind and answer.kind not in kinds)
+                        else None
+                    )
                     yield Option(
                         index,
                         Content(answer.text),
-                        self.DEFAULT_KINDS.get(str(answer.kind)),
+                        key,
                         classes="-active" if active else "",
                     ).data_bind(Question.selected)
+                    if answer.kind is not None:
+                        kinds.add(answer.kind)
 
     def watch_selection(self, old_selection: int, new_selection: int) -> None:
         self.query("#option-container > .-active").remove_class("-active")
@@ -291,7 +300,6 @@ class Question(Widget, can_focus=True):
         kinds = kind if isinstance(kind, tuple) else (kind,)
         for kind in kinds:
             for index, answer in enumerate(self.options):
-                print(index, answer)
                 if answer.kind == kind:
                     self.selection = index
                     self.action_select()
@@ -312,7 +320,7 @@ if __name__ == "__main__":
     OPTIONS = [
         Answer("Yes, allow once", "proceed_always", kind="allow_once"),
         Answer("Yes, allow always", "allow_always", kind="allow_always"),
-        Answer("Modify with external editor", "modify"),
+        Answer("Modify with external editor", "modify", kind="allow_once"),
         Answer("No, suggest changes (esc)", "reject"),
     ]
 
