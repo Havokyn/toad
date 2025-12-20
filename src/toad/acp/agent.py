@@ -126,14 +126,17 @@ class Agent(AgentBase):
 
     @jsonrpc.expose("session/update")
     def rpc_session_update(
-        self, sessionId: str, update: protocol.SessionUpdate, _meta: dict[str, Any]
+        self,
+        sessionId: str,
+        update: protocol.SessionUpdate,
+        _meta: dict[str, Any] | None = None,
     ):
         """Agent requests an update.
 
         https://agentclientprotocol.com/protocol/schema
         """
         status_line: str | None = None
-        if (field_meta := _meta.get("field_meta")) is not None:
+        if _meta and (field_meta := _meta.get("field_meta")) is not None:
             if (
                 open_hands_metrics := field_meta.get("openhands.dev/metrics")
             ) is not None:

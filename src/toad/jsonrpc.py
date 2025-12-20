@@ -261,7 +261,7 @@ class Server:
             # raise
             # print("JSON error", repr(error))
             # log.debug(f"Error in exposed JSONRPC method; {error}")
-            print("INTERNAL ERROR")
+            print("INTERNAL ERROR", error)
             raise InternalError(str(error), id=request_id)
 
         if request_id is None:
